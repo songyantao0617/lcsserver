@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2.server.opcua.type;
+package com.pxccn.PxcDali2.server.service.opcua.type;
 
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.*;
@@ -11,7 +11,7 @@ import com.prosysopc.ua.stack.builtintypes.*;
 import com.prosysopc.ua.stack.core.*;
 import com.prosysopc.ua.stack.utils.NumericRange;
 import com.prosysopc.ua.types.opcua.server.BaseObjectTypeNode;
-import com.pxccn.PxcDali2.server.opcua.UaHelperUtil;
+import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;

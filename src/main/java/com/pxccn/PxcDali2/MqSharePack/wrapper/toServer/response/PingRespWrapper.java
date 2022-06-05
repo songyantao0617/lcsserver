@@ -1,24 +1,57 @@
 package com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response;
 
+import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
-public class PingRespWrapper extends PlcResponse<LcsProtos.PingResp> {
+public class PingRespWrapper extends ResponseWrapper<LcsProtos.PingResp> {
     public static final String TypeUrl = "type.googleapis.com/PingResp";
 
-
-    public PingRespWrapper(int foo, int bar) {
-        super(LcsProtos.PingResp.newBuilder().setFoo(foo).setBar(bar).build());
-    }
-
-    public PingRespWrapper(LcsProtos.PingResp resp) {
-        super(resp);
-    }
-
     public int getFoo() {
-        return this.payload.getFoo();
+        return foo;
     }
 
     public int getBar() {
-        return this.payload.getBar();
+        return bar;
     }
+
+    public String getCabinetName() {
+        return cabinetName;
+    }
+
+    private int foo;
+    private int bar;
+    String cabinetName;
+
+
+    @Override
+    protected LcsProtos.Response.Builder internal_get_payload() {
+        LcsProtos.Response.Builder builder = super.internal_get_payload();
+        builder.setPayload(Any.pack(LcsProtos.PingResp
+                .newBuilder()
+                .setFoo(this.foo)
+                .setBar(this.bar)
+                .setCabinetName(this.cabinetName)
+                .build()));
+        return builder;
+    }
+
+
+    public PingRespWrapper(LcsProtos.ToServerMessage pb) throws InvalidProtocolBufferException {
+        super(pb);
+        LcsProtos.PingResp v = pb.getPayload().unpack(LcsProtos.Response.class).getPayload().unpack(LcsProtos.PingResp.class);
+        this.foo = v.getFoo();
+        this.bar = v.getBar();
+        this.cabinetName = v.getCabinetName();
+    }
+
+    public PingRespWrapper(ResponseParam param,int foo, int bar, String cabinetName){
+        super(param);
+        this.foo = foo;
+        this.bar = bar;
+        this.cabinetName = cabinetName;
+    }
+
 }

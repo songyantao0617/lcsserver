@@ -4,49 +4,90 @@ import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PlcResponse;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.NiagaraOperateRespWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PingRespWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PlcResponse;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
-public class ResponseWrapper extends ProtoToServerQueueMsg<LcsProtos.Response> {
+public class ResponseWrapper<T extends com.google.protobuf.GeneratedMessageV3> extends ProtoToServerQueueMsg<LcsProtos.Response> {
     public static final String TypeUrl = "type.googleapis.com/Response";
 
+    public static ResponseWrapper MAKE(LcsProtos.ToServerMessage pb) throws InvalidProtocolBufferException {
+        switch (pb.getPayload().unpack(LcsProtos.Response.class).getPayload().getTypeUrl()) {
+            case PingRespWrapper.TypeUrl:
+                return new PingRespWrapper(pb);
+            case NiagaraOperateRespWrapper.TypeUrl:
+                return new NiagaraOperateRespWrapper(pb);
+        }
+        return new ResponseWrapper(pb);//异常情况
+    }
 
     public LcsProtos.Response.Status getStatus() {
-        return this.payload.getStatus();
+        return status;
     }
 
     public String getExceptionMessage() {
-        return this.payload.getExceptionMessage();
+        return exceptionMessage;
     }
 
-    public PlcResponse getResponse() throws InvalidProtocolBufferException {
-        switch (payload.getPayload().getTypeUrl()) {
-            case PingRespWrapper.TypeUrl:
-                return new PingRespWrapper(payload.getPayload().unpack(LcsProtos.PingResp.class));
+    private LcsProtos.Response.Status status;
+    private String exceptionMessage;
 
+    public static class ResponseParam {
+        public ToServerMsgParam getTsmp() {
+            return tsmp;
         }
-        return null;
+
+        public void setTsmp(ToServerMsgParam tsmp) {
+            this.tsmp = tsmp;
+        }
+
+        public LcsProtos.Response.Status getStatus() {
+            return status;
+        }
+
+        public void setStatus(LcsProtos.Response.Status status) {
+            this.status = status;
+        }
+
+        public String getExceptionMessage() {
+            return exceptionMessage;
+        }
+
+        public void setExceptionMessage(String exceptionMessage) {
+            this.exceptionMessage = exceptionMessage;
+        }
+
+        ToServerMsgParam tsmp;
+        LcsProtos.Response.Status status;
+        String exceptionMessage;
+
+        public ResponseParam(ToServerMsgParam tsmp, LcsProtos.Response.Status status, String exceptionMessage) {
+            this.tsmp = tsmp;
+            this.status = status;
+            this.exceptionMessage = exceptionMessage;
+        }
     }
 
-    public ResponseWrapper(long timestamp, int cabinetId, ProtoHeaders headers, LcsProtos.Response payload) throws InvalidProtocolBufferException {
-        super(timestamp, cabinetId, headers, payload);
+    public ResponseWrapper(ResponseParam param) {
+        super(param.tsmp);
+        this.status = param.status;
+        this.exceptionMessage = param.exceptionMessage;
     }
 
-    public ResponseWrapper(long timestamp, int cabinetId, ProtoHeaders headers, LcsProtos.Response.Status status, String exceptionMessage, PlcResponse response) {
-        super(timestamp, cabinetId, headers, LcsProtos.Response
-                .newBuilder()
-                .setStatus(status)
-                .setExceptionMessage(exceptionMessage)
-                .setPayload(Any.pack(response.getPb()))
-                .build());
+    public ResponseWrapper(LcsProtos.ToServerMessage pb) throws InvalidProtocolBufferException {
+        super(pb);
+        LcsProtos.Response v = pb.getPayload().unpack(LcsProtos.Response.class);
+        this.status = v.getStatus();
+        this.exceptionMessage = v.getExceptionMessage();
+
     }
 
-    public ResponseWrapper(long timestamp, int cabinetId, ProtoHeaders headers, LcsProtos.Response.Status status, String exceptionMessage) {
-        super(timestamp, cabinetId, headers, LcsProtos.Response
-                .newBuilder()
-                .setStatus(status)
-                .setExceptionMessage(exceptionMessage)
-                .build());
+    @Override
+    protected LcsProtos.Response.Builder internal_get_payload() {
+        return LcsProtos.Response.newBuilder()
+                .setStatus(this.status)
+                .setExceptionMessage(this.exceptionMessage);
     }
+
 }

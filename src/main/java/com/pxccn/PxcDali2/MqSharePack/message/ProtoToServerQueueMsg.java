@@ -8,23 +8,69 @@ import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.CabinetStatusWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.RealtimeStatusWrapper;
 
-public class ProtoToServerQueueMsg<T extends com.google.protobuf.GeneratedMessageV3> implements QueueMsg {
+public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.GeneratedMessageV3> implements QueueMsg {
 
     private final long timestamp;
     private final ProtoHeaders headers;
-    protected final T payload;
     private final int cabinetId;
 
     public int getCabinetId() {
         return this.cabinetId;
     }
 
-    public ProtoToServerQueueMsg(long timestamp, int cabinetId, ProtoHeaders headers, T payload) {
-        this.timestamp = timestamp;
-        this.headers = headers;
-        this.payload = payload;
-        this.cabinetId = cabinetId;
+    public static class ToServerMsgParam{
+        public long getTimestamp() {
+            return timestamp;
+        }
+
+        public void setTimestamp(long timestamp) {
+            this.timestamp = timestamp;
+        }
+
+        public ProtoHeaders getHeaders() {
+            return headers;
+        }
+
+        public void setHeaders(ProtoHeaders headers) {
+            this.headers = headers;
+        }
+
+        public int getCabinetId() {
+            return cabinetId;
+        }
+
+        public void setCabinetId(int cabinetId) {
+            this.cabinetId = cabinetId;
+        }
+
+        long timestamp;
+        ProtoHeaders headers;
+        int cabinetId;
+        public ToServerMsgParam(long timestamp,ProtoHeaders headers,int cabinetId){
+            this.timestamp = timestamp;
+            this.headers = headers;
+            this.cabinetId = cabinetId;
+        }
     }
+
+    public ProtoToServerQueueMsg(ToServerMsgParam param) {
+        this(param.timestamp,param.cabinetId,param.headers);
+    }
+
+    public ProtoToServerQueueMsg(long timestamp, int cabinetId, ProtoHeaders headers) {
+        this.timestamp = timestamp;
+        this.cabinetId = cabinetId;
+        this.headers = headers;
+    }
+
+    public ProtoToServerQueueMsg(LcsProtos.ToServerMessage pb) {
+        this.timestamp = pb.getTimestamp();
+        this.cabinetId = pb.getCabinetId();
+        this.headers = new ProtoHeaders(pb.getHeaders());
+    }
+
+
+    protected abstract T.Builder internal_get_payload();
 
 
 
@@ -46,25 +92,22 @@ public class ProtoToServerQueueMsg<T extends com.google.protobuf.GeneratedMessag
                 .setCabinetId(this.cabinetId)
                 .setTimestamp(this.timestamp)
                 .setHeaders(this.headers.getInternalData())
-                .setPayload(Any.pack(this.payload))
+                .setPayload(Any.pack(this.internal_get_payload().build()))
                 .build()
                 .toByteArray();
     }
 
     public static ProtoToServerQueueMsg FromData(byte[] data) throws InvalidProtocolBufferException {
         LcsProtos.ToServerMessage msg = LcsProtos.ToServerMessage.parseFrom(data);
-        long timestamp = msg.getTimestamp();
-        int cabinetId = msg.getCabinetId();
-        ProtoHeaders headers = new ProtoHeaders(msg.getHeaders());
         Any pb_payload = msg.getPayload();
 
         switch (pb_payload.getTypeUrl()) {
             case ResponseWrapper.TypeUrl:
-                return new ResponseWrapper(timestamp, cabinetId, headers, pb_payload.unpack(LcsProtos.Response.class));
+                return ResponseWrapper.MAKE(msg);
             case RealtimeStatusWrapper.TypeUrl:
-                return new RealtimeStatusWrapper(timestamp, cabinetId, headers, pb_payload.unpack(LcsProtos.RealtimeStatus.class));
+                return new RealtimeStatusWrapper(msg);
             case CabinetStatusWrapper.TypeUrl:
-                return new CabinetStatusWrapper(timestamp, cabinetId, headers, pb_payload.unpack(LcsProtos.CabinetStatus.class));
+                return new CabinetStatusWrapper(msg);
             default:
                 return null;
         }

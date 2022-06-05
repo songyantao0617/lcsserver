@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2.server.opcua;
+package com.pxccn.PxcDali2.server.service.opcua;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

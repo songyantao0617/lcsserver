@@ -18,6 +18,25 @@ public class LightRealtimeStatusModel implements IPbModel<LcsProtos.LightRealtim
     public final int rawActualLevelResponse;
     public final boolean frameError;
 
+    public LightRealtimeStatusModel(
+            UUID lightId,
+            int terminalIndex,
+            int shortAddress,
+            long timestamp,
+            int rawStatusResponse,
+            int rawActualLevelResponse,
+            boolean frameError,
+            String exceptionMessage){
+        this.lightId = lightId;
+        this.terminalIndex = terminalIndex;
+        this.shortAddress = shortAddress;
+        this.timestamp = timestamp;
+        this.rawStatusResponse = rawStatusResponse;
+        this.rawActualLevelResponse= rawActualLevelResponse;
+        this.frameError = frameError;
+        this.exceptionMessage = exceptionMessage;
+    }
+
     public double brightness;
     public boolean controlGearError;
     public boolean lampError;

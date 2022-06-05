@@ -1,5 +1,5 @@
 package com.pxccn.PxcDali2.server.space.cabinets;
-import com.pxccn.PxcDali2.server.opcua.type.LCS_ComponentFastObjectNode;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import com.pxccn.PxcDali2.server.util.annotation.FwComponentAnnotation;
 

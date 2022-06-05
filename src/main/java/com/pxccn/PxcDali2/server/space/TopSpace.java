@@ -3,7 +3,7 @@ package com.pxccn.PxcDali2.server.space;
 import com.pxccn.PxcDali2.server.events.ToComponent.ToComponentEvent;
 import com.pxccn.PxcDali2.server.framework.FwComponent;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
-import com.pxccn.PxcDali2.server.opcua.LcsNodeManager;
+import com.pxccn.PxcDali2.server.service.opcua.LcsNodeManager;
 import com.pxccn.PxcDali2.server.space.cabinets.CabinetsManager;
 import com.pxccn.PxcDali2.server.space.lights.LightsManager;
 import lombok.extern.slf4j.Slf4j;

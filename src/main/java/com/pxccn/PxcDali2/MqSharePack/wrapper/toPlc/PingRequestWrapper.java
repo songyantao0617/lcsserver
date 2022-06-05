@@ -1,5 +1,7 @@
 package com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc;
 
+import com.google.protobuf.GeneratedMessageV3;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToPlcQueueMsg;
@@ -7,28 +9,27 @@ import com.pxccn.PxcDali2.Util;
 
 public class PingRequestWrapper extends ProtoToPlcQueueMsg<LcsProtos.PingRequest> {
     public static final String TypeUrl = "type.googleapis.com/PingRequest";
+    private int foo;
+    private int bar;
 
 
     //反序列化使用
-    public PingRequestWrapper(ProtoHeaders headers, LcsProtos.PingRequest payload) {
-        super(headers, payload);
+    public PingRequestWrapper(LcsProtos.ToPlcMessage pb) throws InvalidProtocolBufferException {
+        super(pb);
+        LcsProtos.PingRequest v = pb.getPayload().unpack(LcsProtos.PingRequest.class);
+        this.foo = v.getFoo();
+        this.bar = v.getBar();
     }
 
-    public PingRequestWrapper(int foo, int bar) {
-        super(Util.NewCommonHeaderForClient(), LcsProtos.PingRequest
-                .newBuilder()
-                .setFoo(foo)
-                .setBar(bar)
-                .build());
+    public PingRequestWrapper(ProtoHeaders headers,int foo, int bar) {
+        super(headers);
+        this.foo = foo;
+        this.bar = bar;
     }
 
-    public int getFoo() {
-        return this.payload.getFoo();
+    @Override
+    protected LcsProtos.PingRequest.Builder internal_get_payload() {
+        return LcsProtos.PingRequest.newBuilder().setFoo(this.foo).setBar(this.bar);
     }
-
-    public int getBar() {
-        return this.payload.getBar();
-    }
-
 
 }

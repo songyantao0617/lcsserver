@@ -1,18 +1,17 @@
-package com.pxccn.PxcDali2.server.opcua.type;
+package com.pxccn.PxcDali2.server.service.opcua.type;
 
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
 import com.prosysopc.ua.nodes.UaValueNode;
 import com.prosysopc.ua.stack.builtintypes.DataValue;
-import com.prosysopc.ua.stack.builtintypes.LocalizedText;
 import com.prosysopc.ua.stack.builtintypes.NodeId;
 import com.prosysopc.ua.stack.builtintypes.QualifiedName;
 import com.prosysopc.ua.stack.core.Identifiers;
 import com.prosysopc.ua.stack.utils.NumericRange;
 import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
-import com.pxccn.PxcDali2.server.opcua.LcsNodeManager;
-import com.pxccn.PxcDali2.server.opcua.UaHelperUtil;
+import com.pxccn.PxcDali2.server.service.opcua.LcsNodeManager;
+import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 
 import java.util.*;

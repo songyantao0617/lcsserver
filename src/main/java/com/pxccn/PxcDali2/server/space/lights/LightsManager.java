@@ -1,10 +1,11 @@
 package com.pxccn.PxcDali2.server.space.lights;
 
 import com.prosysopc.ua.nodes.UaNode;
-import com.pxccn.PxcDali2.server.events.ToComponent.LightStatusMessageMqCompEvent;
-import com.pxccn.PxcDali2.server.opcua.UaHelperUtil;
-import com.pxccn.PxcDali2.server.opcua.type.LCS_ComponentFastObjectNode;
+import com.pxccn.PxcDali2.server.events.LightsRealtimeStatusModelEvent;
+import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
+import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -12,17 +13,24 @@ import java.util.UUID;
 //@FwComponentAnnotation
 @Component
 public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsManagerNode> {
-//    FwProperty<LightBase> l1 = addProperty(new LightBase(), "light1");
-//    FwProperty<LightBase> l2 = addProperty(new LightBase(), "light2");
 
-    @Override
-    public void onEvent(Object event) {
-        if (event instanceof LightStatusMessageMqCompEvent) {
-            var msg = ((LightStatusMessageMqCompEvent) event).getMessage();
-            var light = this.GetOrCreateLight(msg.lightId);
-            light.onNewStatus(msg);
-        }
+    @EventListener
+    public void onLightsModelEvent(LightsRealtimeStatusModelEvent event){
+        event.getModelList().forEach(m->{
+            var light = this.GetOrCreateLight(m.lightId);
+            light.onNewStatus(m);
+        });
+
     }
+
+//    @Override
+//    public void onEvent(Object event) {
+//        if (event instanceof LightStatusMessageMqCompEvent) {
+//            var msg = ((LightStatusMessageMqCompEvent) event).getMessage();
+//            var light = this.GetOrCreateLight(msg.lightId);
+//            light.onNewStatus(msg);
+//        }
+//    }
 
     public void started() {
         super.started();

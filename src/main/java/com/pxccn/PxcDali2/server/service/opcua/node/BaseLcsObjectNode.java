@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2.server.opcua.node;
+package com.pxccn.PxcDali2.server.service.opcua.node;
 
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.server.nodes.BaseNode;

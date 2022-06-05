@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2.server.opcua.type;
+package com.pxccn.PxcDali2.server.service.opcua.type;
 
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.TypeDefinitionId;
@@ -16,8 +16,8 @@ import com.prosysopc.ua.stack.utils.NumericRange;
 import com.prosysopc.ua.types.opcua.server.FolderTypeNode;
 
 
-import com.pxccn.PxcDali2.server.opcua.LcsNodeManager;
-import com.pxccn.PxcDali2.server.opcua.UaHelperUtil;
+import com.pxccn.PxcDali2.server.service.opcua.LcsNodeManager;
+import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 
 @TypeDefinitionId(nsu = LcsNodeManager.Namespace, i = LCS_NodeBasedMethodNode.TYPE_ID)
 public class LCS_NodeBasedMethodNode extends FolderTypeNode {

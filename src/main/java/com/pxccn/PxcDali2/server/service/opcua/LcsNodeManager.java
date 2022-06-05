@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2.server.opcua;
+package com.pxccn.PxcDali2.server.service.opcua;
 
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNodeFactoryException;
@@ -12,15 +12,11 @@ import com.prosysopc.ua.stack.builtintypes.LocalizedText;
 import com.prosysopc.ua.stack.builtintypes.NodeId;
 import com.prosysopc.ua.stack.builtintypes.QualifiedName;
 import com.prosysopc.ua.stack.core.Identifiers;
-import com.prosysopc.ua.types.opcua.server.FolderTypeNode;
-import com.pxccn.PxcDali2.server.opcua.node.Dali2LightObjectNode;
-import com.pxccn.PxcDali2.server.opcua.type.LCS_BaseObjectTypeNode;
-import com.pxccn.PxcDali2.server.opcua.type.LCS_FastObjectNodeBase;
-import com.pxccn.PxcDali2.server.opcua.type.LCS_Folder;
-import com.pxccn.PxcDali2.server.opcua.type.LCS_NodeBasedMethodNode;
-import org.springframework.stereotype.Component;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_BaseObjectTypeNode;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_FastObjectNodeBase;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_Folder;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_NodeBasedMethodNode;
 
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 

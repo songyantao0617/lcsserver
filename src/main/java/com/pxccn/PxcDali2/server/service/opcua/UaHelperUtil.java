@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2.server.opcua;
+package com.pxccn.PxcDali2.server.service.opcua;
 
 import com.prosysopc.ua.ValueRanks;
 import com.prosysopc.ua.nodes.MethodArgumentException;
@@ -14,8 +14,8 @@ import com.prosysopc.ua.stack.core.AccessLevelType;
 import com.prosysopc.ua.stack.core.Argument;
 import com.prosysopc.ua.stack.core.Identifiers;
 import com.prosysopc.ua.types.opcua.server.FolderTypeNode;
-import com.pxccn.PxcDali2.server.opcua.type.LCS_Folder;
-import com.pxccn.PxcDali2.server.opcua.type.LCS_NodeBasedMethodNode;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_Folder;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_NodeBasedMethodNode;
 
 import java.util.Arrays;
 import java.util.Map;

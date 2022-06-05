@@ -3,9 +3,10 @@ package com.pxccn.PxcDali2.server.space.cabinets;
 import com.prosysopc.ua.nodes.UaNode;
 import com.pxccn.PxcDali2.server.events.CabinetStatusMqEvent;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
-import com.pxccn.PxcDali2.server.opcua.UaHelperUtil;
-import com.pxccn.PxcDali2.server.opcua.type.LCS_ComponentFastObjectNode;
+import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +14,7 @@ import java.util.Arrays;
 
 //@FwComponentAnnotation
 @Component
+@Slf4j
 public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManagerNode> {
 
     @EventListener
@@ -45,8 +47,8 @@ public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManag
 
     public void started() {
         super.started();
-        GetOrCreateCabinet(123);
-        GetOrCreateCabinet(1244);
+//        GetOrCreateCabinet(123);
+//        GetOrCreateCabinet(1244);
     }
 
 

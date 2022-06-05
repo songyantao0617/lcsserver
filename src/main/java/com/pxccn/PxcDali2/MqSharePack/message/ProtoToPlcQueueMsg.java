@@ -3,6 +3,7 @@ package com.pxccn.PxcDali2.MqSharePack.message;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.NiagaraOperateRequestWrapper;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.PingRequestWrapper;
 import com.pxccn.PxcDali2.Util;
@@ -11,23 +12,28 @@ import com.pxccn.PxcDali2.Util;
 public abstract class ProtoToPlcQueueMsg<T extends com.google.protobuf.GeneratedMessageV3> implements QueueMsg {
 
     private final ProtoHeaders headers;
-    protected final T payload;
     private final long timestamp;
 
 
-    public ProtoToPlcQueueMsg(ProtoHeaders headers, T payload) {
+    public ProtoToPlcQueueMsg(ProtoHeaders headers) {
         this.headers = headers;
-        this.payload = payload;
         this.timestamp = System.currentTimeMillis();
     }
 
+    public ProtoToPlcQueueMsg(LcsProtos.ToPlcMessage pb) {
+        this.headers = new ProtoHeaders(pb.getHeaders());
+        this.timestamp = pb.getTimestamp();
+    }
+
+    protected abstract T.Builder internal_get_payload();
 
     @Override
     public ProtoHeaders getHeaders() {
         return this.headers;
     }
+
     @Override
-    public long getTimestamp(){
+    public long getTimestamp() {
         return this.timestamp;
     }
 
@@ -37,19 +43,20 @@ public abstract class ProtoToPlcQueueMsg<T extends com.google.protobuf.Generated
                 .newBuilder()
                 .setHeaders(this.headers.getInternalData())
                 .setTimestamp(System.currentTimeMillis())
-                .setPayload(Any.pack(this.payload))
+                .setPayload(Any.pack(this.internal_get_payload().build()))
                 .build()
                 .toByteArray();
     }
 
     public static ProtoToPlcQueueMsg FromData(byte[] data) throws InvalidProtocolBufferException {
         LcsProtos.ToPlcMessage msg = LcsProtos.ToPlcMessage.parseFrom(data);
-        ProtoHeaders headers = new ProtoHeaders(msg.getHeaders());
         Any pb_payload = msg.getPayload();
 
-        switch (pb_payload.getTypeUrl()){
+        switch (pb_payload.getTypeUrl()) {
             case PingRequestWrapper.TypeUrl:
-                return new PingRequestWrapper(headers,pb_payload.unpack(LcsProtos.PingRequest.class));
+                return new PingRequestWrapper(msg);
+            case NiagaraOperateRequestWrapper.TypeUrl:
+                return new NiagaraOperateRequestWrapper(msg);
             default:
                 return null;
         }

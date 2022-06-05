@@ -53,7 +53,53 @@ message Event{
 
 
 
+//Niagara 平台级操作请求
+message perOperateRequest{
+  enum Operate{
+    READ_PROPERTY = 0;
+    WRITE_PROPERTY = 1;
+    INVOKE_METHOD = 2;
+  }
+  Operate operate = 1;
+  oneof howToLocate{
+    string targetSlotOrd = 2;
+    string lightOrRoomUuid = 3;//UUID 拼接方式
+  }
+  oneof parameter{
+    string newValueToSet = 5;
+    string methodName = 6;
+  }
+  repeated bytes methodParameters = 7;
+}
 
+//Niagara 平台级操作回应
+message perOperateResp{
+  bool success = 1;
+  string exceptionReason = 2;
+  string targetValue = 3;
+  bytes methodReturn = 4;
+}
+
+
+message NiagaraOperateRequest{
+  repeated perOperateRequest operates = 1;
+  bool stopAtError = 2;
+}
+
+message NiagaraOperateResp{
+  repeated perOperateResp responses = 1;
+}
+
+message EasyCmdRequest{
+  enum CMD{
+    PURGE_LIGHTS_STATUS_BUFFER = 0;
+  }
+  CMD cmd = 1;
+}
+
+message EasyCmdResp{
+
+}
 
 
 //南向发送Ping
@@ -66,7 +112,6 @@ message PingRequest{
 message PingResp{
   int32 foo = 1;
   int32 bar = 2;
-  int32 cabinetId = 3;
   string cabinetName = 4;
 }
 

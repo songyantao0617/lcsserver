@@ -1,8 +1,7 @@
-package com.pxccn.PxcDali2.server.opcua;
+package com.pxccn.PxcDali2.server.service.opcua;
 
 import com.prosysopc.ua.*;
 import com.prosysopc.ua.server.UaServer;
-import com.prosysopc.ua.server.UaServerException;
 import com.prosysopc.ua.stack.builtintypes.DateTime;
 import com.prosysopc.ua.stack.builtintypes.LocalizedText;
 import com.prosysopc.ua.stack.cert.*;
@@ -25,15 +24,13 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.File;
-import java.io.IOException;
-import java.net.SocketException;
 import java.net.URL;
 import java.security.cert.CertificateParsingException;
 import java.util.*;
 
 @Service
 @Slf4j
-public class OpcuaServer {
+public class OpcuaService {
 
     @Autowired
     TopSpace topSpace;
@@ -127,7 +124,7 @@ public class OpcuaServer {
             buildInfo.setManufacturerName("PhoenixContact-SongYantao");
             buildInfo.setSoftwareVersion(this.prosysConfig.getVersion());
             buildInfo.setBuildNumber("1");
-            final URL classFile = UaServer.class.getResource("/com/pxccn/PxcDali2/server/opcua/OpcuaServer.class");
+            final URL classFile = UaServer.class.getResource("/com/pxccn/PxcDali2/server/service/opcua/OpcuaServer.class");
             if (classFile != null && classFile.getFile() != null) {
                 final File mfFile = new File(classFile.getFile());
                 GregorianCalendar c = new GregorianCalendar();

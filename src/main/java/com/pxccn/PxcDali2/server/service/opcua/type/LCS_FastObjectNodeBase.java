@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2.server.opcua.type;
+package com.pxccn.PxcDali2.server.service.opcua.type;
 
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.*;
@@ -11,8 +11,8 @@ import com.prosysopc.ua.server.nodes.UaObjectTypeNode;
 import com.prosysopc.ua.stack.builtintypes.*;
 import com.prosysopc.ua.stack.core.*;
 import com.prosysopc.ua.stack.utils.NumericRange;
-import com.pxccn.PxcDali2.server.opcua.LcsNodeManager;
-import com.pxccn.PxcDali2.server.opcua.UaHelperUtil;
+import com.pxccn.PxcDali2.server.service.opcua.LcsNodeManager;
+import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
@@ -28,6 +28,8 @@ public abstract class LCS_FastObjectNodeBase extends UaObjectNode {
     private final Map<UaHelperUtil.UaDeclare, UaNode> _nodeCache = new HashMap<>();
     private final Map<NodeId, UaHelperUtil.UaMethodDeclare> _methodCache = new HashMap<>();
     private final Map<NodeId, UaHelperUtil.UaVariableDeclare> _variableCache = new HashMap<>();
+
+    private static final Object lockForCreateType = new Object();
 
     //由Manager初始化调用
     public static void init(UaType objectTypeContainer, LcsNodeManager manager) {
@@ -178,14 +180,21 @@ public abstract class LCS_FastObjectNodeBase extends UaObjectNode {
      */
     private UaObjectType getObjectType(String typeNodeIdString, String typeDisplayNameString) {
         NodeId typeNodeId = new NodeId((getNamespaceIndex()), typeNodeIdString);
+
+
         UaObjectType typeNode = objectTypeNodes.get(typeNodeId);
         if (typeNode == null) {
-            try {
-                typeNode = new UaObjectTypeNode(manager, new NodeId(getNamespaceIndex(), typeNodeIdString), typeDisplayNameString, null);
-                manager.addNodeAndReference(objectTypeContainer, typeNode, Identifiers.HasSubtype);
-                LCS_FastObjectNodeBase.objectTypeNodes.put(typeNode.getNodeId(), typeNode);
-            } catch (Throwable e) {
-                throw new RuntimeException(e);
+            synchronized (lockForCreateType) {
+                if ((typeNode = objectTypeNodes.get(typeNodeId)) == null) {
+                    try {
+                        typeNode = new UaObjectTypeNode(manager, new NodeId(getNamespaceIndex(), typeNodeIdString), typeDisplayNameString, null);
+                        manager.addNodeAndReference(objectTypeContainer, typeNode, Identifiers.HasSubtype);
+                        LCS_FastObjectNodeBase.objectTypeNodes.put(typeNode.getNodeId(), typeNode);
+                    } catch (Throwable e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+
             }
         }
         return typeNode;

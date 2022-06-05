@@ -23,9 +23,27 @@ public class CabinetCommonReceiver {
     @Autowired
     ApplicationContext context;
 
-    @RabbitHandler
     @RabbitListener(queues = consumerQueue_cabinet_common)
-    public void inComing(Object omsg) {
+    public void inComing1(Object omsg) {
+        this.doProcess(omsg);
+    }
+
+    @RabbitListener(queues = consumerQueue_cabinet_common)
+    public void inComing2(Object omsg) {
+        this.doProcess(omsg);
+    }
+
+    @RabbitListener(queues = consumerQueue_cabinet_common)
+    public void inComing3(Object omsg) {
+        this.doProcess(omsg);
+    }
+
+    @RabbitListener(queues = consumerQueue_cabinet_common)
+    public void inComing4(Object omsg) {
+        this.doProcess(omsg);
+    }
+
+    private void doProcess(Object omsg) {
         Message msg = (Message) omsg;
         try {
             var decodedMsg = ProtoToServerQueueMsg.FromData(msg.getBody());
@@ -41,5 +59,4 @@ public class CabinetCommonReceiver {
         }
 
     }
-
 }

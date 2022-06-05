@@ -1,0 +1,103 @@
+syntax = "proto3";
+option java_package = "com.pxccn.PxcDali2.Proto";
+option java_outer_classname = "LcsProtos";
+import "google/protobuf/any.proto";
+
+message Uuid{
+  int64 MSB = 1;
+  int64 LSB = 2;
+}
+//字符串键值对
+message sKsV{
+  string K = 1;
+  string V = 2;
+}
+
+//单个灯具的实时状态信息
+message LightRealtimeStatus{
+  //灯具识别
+  Uuid lightId = 1;
+  int32 terminalIndex = 2;
+  int32 shortAddress = 3;
+  int64 timestamp = 4;
+
+  int32 rawStatusResponse = 5;
+  int32 rawActualLevelResponse = 6;
+
+  bool frameError = 7;
+  string exceptionMessage = 8;
+}
+
+message DeviceRealtimeStatus{
+
+}
+
+message RealtimeStatus{
+  repeated LightRealtimeStatus lightStatus = 1;
+  repeated DeviceRealtimeStatus deviceStatus = 2;
+}
+
+
+
+
+message CabinetStatus{
+  repeated sKsV props = 1;
+}
+
+message Event{
+  enum EventType{
+    ROOM_ACTION = 0;
+  }
+  EventType eventType = 1;
+}
+
+
+
+
+
+
+//南向发送Ping
+message PingRequest{
+  int32 foo = 1;
+  int32 bar = 2;
+}
+
+//北向Ping
+message PingResp{
+  int32 foo = 1;
+  int32 bar = 2;
+  int32 cabinetId = 3;
+  string cabinetName = 4;
+}
+
+//北向回应封装
+message Response{
+  enum Status{
+    SUCCESS = 0;
+    FAILURE = 1;
+    FATAL = 2;
+  }
+  Status status = 2;
+  string exceptionMessage = 3;
+  google.protobuf.Any payload = 4; //封装真实回应内容
+}
+
+//报文头
+message Headers{
+  repeated sKsV kvs = 1;
+}
+
+//南向报文
+message ToPlcMessage{
+  int64 timestamp = 1;
+  Headers headers = 3;
+  google.protobuf.Any payload = 5;
+}
+
+//北向报文
+message ToServerMessage{
+  int32 cabinetId = 1;
+  int64 timestamp = 2;
+  Headers headers = 3;
+  google.protobuf.Any payload = 4;  //如果为回应，封装 Response
+}

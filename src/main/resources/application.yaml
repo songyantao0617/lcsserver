@@ -1,0 +1,29 @@
+LcsServer:
+  name: "LCS-Server-1"
+  ver: "0.1"
+
+spring:
+  rabbitmq:
+    virtual-host: LCS
+    host: 127.0.0.1  #mq服务器ip,默认为localhost
+#    port: 5672          #mq服务器port,默认为5672
+#    username: guest     #mq服务器username,默认为gust
+#    password: guest     #mq服务器password,默认为guest
+    listener:
+      type: direct
+logging:
+  level:
+    com.pxccn.PxcDali2: debug
+    com.pxccn.PxcDali2.server.mq: trace
+prosys:
+  ApplicationName: LCS_Server@hostname
+  ApplicationUri: "urn:hostname:OPCUA:LCS_Server"
+  ProductUri: "urn:pxc.com:OPCUA:LCS_Server"
+  ApplicationCertificateStore: PKI/CA
+  ApplicationIssuerCertificateStore: PKI/CA/issuers
+  UserCertificateStore: USERS_PKI/CA
+  UserIssuerCertificateStore: USERS_PKI/CA/issuers
+  Port: 52520
+  Version: 0.01
+
+

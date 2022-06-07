@@ -10,7 +10,7 @@ public class CabinetStatusMqEvent extends FwBaseEvent {
         this.message = message;
     }
 
-    public CabinetStatusWrapper getMessage(){
+    public CabinetStatusWrapper getMessage() {
         return this.message;
     }
 

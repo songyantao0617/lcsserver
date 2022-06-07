@@ -10,7 +10,7 @@ public class RpcTarget {
         if (this.isAll) {
             return "目的地：全场控制器";
         } else {
-            return "目的地：" + String.valueOf(this.target);
+            return "目的地：" + this.target;
         }
     }
 
@@ -30,8 +30,8 @@ public class RpcTarget {
     }
 
 
-    private String rk;
-    private String ec;
+    private final String rk;
+    private final String ec;
 
 
     public String getRoutingKey() {

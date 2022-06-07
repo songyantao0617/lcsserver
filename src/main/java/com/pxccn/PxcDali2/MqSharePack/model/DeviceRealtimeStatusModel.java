@@ -5,7 +5,6 @@ import com.pxccn.PxcDali2.Proto.LcsProtos;
 public class DeviceRealtimeStatusModel implements IPbModel<LcsProtos.DeviceRealtimeStatus> {
 
 
-
     public DeviceRealtimeStatusModel(LcsProtos.DeviceRealtimeStatus pb) {
 
     }

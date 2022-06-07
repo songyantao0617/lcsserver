@@ -2,7 +2,6 @@ package com.pxccn.PxcDali2.server.framework;
 
 import com.pxccn.PxcDali2.server.framework.Exception.FwRuntimeException;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 
@@ -17,7 +16,7 @@ public class TestComp extends FwComponent {
     }
 
     @PostConstruct
-    public void started(){
+    public void started() {
         this.start();
     }
 
@@ -27,8 +26,6 @@ public class TestComp extends FwComponent {
             log.error("Field1 - > " + this.Field1.get());
         }
     }
-
-
 
 
 }

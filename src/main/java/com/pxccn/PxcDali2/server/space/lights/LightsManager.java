@@ -15,8 +15,8 @@ import java.util.UUID;
 public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsManagerNode> {
 
     @EventListener
-    public void onLightsModelEvent(LightsRealtimeStatusModelEvent event){
-        event.getModelList().forEach(m->{
+    public void onLightsModelEvent(LightsRealtimeStatusModelEvent event) {
+        event.getModelList().forEach(m -> {
             var light = this.GetOrCreateLight(m.lightId);
             light.onNewStatus(m);
         });
@@ -67,7 +67,7 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
         }
 
         private enum folders implements UaHelperUtil.UaFolderDeclare {
-            lights;
+            lights
         }
     }
 

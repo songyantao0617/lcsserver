@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public abstract class FwUaComponent<T extends LCS_ComponentFastObjectNode> extends FwBaseUaComponent<T> {
 
-    protected void beforePropStart(){
+    protected void beforePropStart() {
         var node = this.createUaNode();
         this.getParentNode().addComponent(node.init());
         this._thisNode = node;

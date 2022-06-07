@@ -70,7 +70,7 @@ public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManag
         }
 
         enum folders implements UaHelperUtil.UaFolderDeclare {
-            cabinets;
+            cabinets
         }
     }
 }

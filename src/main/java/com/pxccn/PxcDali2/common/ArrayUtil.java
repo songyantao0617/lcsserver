@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2.server.util;
+package com.pxccn.PxcDali2.common;
 
 import java.lang.reflect.Array;
 import java.util.ArrayList;
@@ -12,7 +12,7 @@ public class ArrayUtil {
     }
 
     public static int indexOf(Object[] array, Object x) {
-        for(int i = 0; i < array.length; ++i) {
+        for (int i = 0; i < array.length; ++i) {
             if (array[i] == x) {
                 return i;
             }
@@ -40,7 +40,7 @@ public class ArrayUtil {
     }
 
     public static boolean remove(Object[] array, int size, Object elem) {
-        for(int i = 0; i < size; ++i) {
+        for (int i = 0; i < size; ++i) {
             if (array[i] == elem) {
                 if (i < array.length) {
                     System.arraycopy(array, i + 1, array, i, array.length - i - 1);
@@ -65,7 +65,7 @@ public class ArrayUtil {
     public static <T> T[] removeOne(T[] array, T elem) {
         int len = array.length;
 
-        for(int i = 0; i < len; ++i) {
+        for (int i = 0; i < len; ++i) {
             if (array[i] == elem) {
                 return removeOne(array, i);
             }
@@ -85,7 +85,7 @@ public class ArrayUtil {
     public static <T> T[] toTop(T[] a, int index) {
         ArrayList<T> v = new ArrayList();
 
-        for(int i = 0; i < a.length; ++i) {
+        for (int i = 0; i < a.length; ++i) {
             if (i != index) {
                 v.add(a[i]);
             }
@@ -98,7 +98,7 @@ public class ArrayUtil {
     public static <T> T[] toBottom(T[] a, int index) {
         ArrayList<T> v = new ArrayList();
 
-        for(int i = 0; i < a.length; ++i) {
+        for (int i = 0; i < a.length; ++i) {
             if (i != index) {
                 v.add(a[i]);
             }
@@ -109,7 +109,7 @@ public class ArrayUtil {
     }
 
     public static <T> T[] arrayFromCollection(Collection<T> collection, IntFunction<T[]> generator) {
-        return collection.toArray((T[])generator.apply(collection.size()));
+        return collection.toArray(generator.apply(collection.size()));
     }
 
     public static <T> boolean testAny(T[] array, Predicate<T> predicate) {
@@ -145,7 +145,7 @@ public class ArrayUtil {
     }
 
     public static int indexOf(int[] array, int x) {
-        for(int i = 0; i < array.length; ++i) {
+        for (int i = 0; i < array.length; ++i) {
             if (array[i] == x) {
                 return i;
             }
@@ -172,7 +172,7 @@ public class ArrayUtil {
     }
 
     public static boolean remove(int[] array, int size, int elem) {
-        for(int i = 0; i < size; ++i) {
+        for (int i = 0; i < size; ++i) {
             if (array[i] == elem) {
                 if (i < array.length) {
                     System.arraycopy(array, i + 1, array, i, array.length - i - 1);
@@ -197,7 +197,7 @@ public class ArrayUtil {
         int[] temp = new int[array.length - 1];
         int len = array.length;
 
-        for(int i = 0; i < len; ++i) {
+        for (int i = 0; i < len; ++i) {
             if (array[i] == elem) {
                 System.arraycopy(array, 0, temp, 0, i);
                 System.arraycopy(array, i + 1, temp, i, len - i - 1);
@@ -218,12 +218,12 @@ public class ArrayUtil {
     public static void sort(int[] array) {
         int n = array.length;
 
-        for(int incr = n / 2; incr >= 1; incr /= 2) {
-            for(int i = incr; i < n; ++i) {
+        for (int incr = n / 2; incr >= 1; incr /= 2) {
+            for (int i = incr; i < n; ++i) {
                 int temp = array[i];
 
                 int j;
-                for(j = i; j >= incr && temp < array[j - incr]; j -= incr) {
+                for (j = i; j >= incr && temp < array[j - incr]; j -= incr) {
                     array[j] = array[j - incr];
                 }
 
@@ -238,7 +238,7 @@ public class ArrayUtil {
         int lo = -1;
         int hi = n;
 
-        while(hi - lo > 1) {
+        while (hi - lo > 1) {
             int i = (hi + lo) / 2;
             int a = array[i];
             if (a > value) {
@@ -282,7 +282,7 @@ public class ArrayUtil {
         if (a != null && a.length > 0) {
             StringBuilder str = new StringBuilder();
 
-            for(int i = 0; i < a.length; ++i) {
+            for (int i = 0; i < a.length; ++i) {
                 if (i > 0) {
                     str.append(delimiter);
                 }

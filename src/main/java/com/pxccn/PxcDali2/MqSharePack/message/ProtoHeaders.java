@@ -10,9 +10,9 @@ public class ProtoHeaders implements QueueMsgHeaders<LcsProtos.Headers> {
     public ProtoHeaders() {
     }
 
-    public ProtoHeaders(LcsProtos.Headers headers){
-        headers.getKvsList().forEach(kv->{
-            this.kv_map.put(kv.getK(),kv.getV());
+    public ProtoHeaders(LcsProtos.Headers headers) {
+        headers.getKvsList().forEach(kv -> {
+            this.kv_map.put(kv.getK(), kv.getV());
         });
     }
 

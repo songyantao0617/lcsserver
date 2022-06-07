@@ -16,7 +16,7 @@ public abstract class FwBaseUaComponent<T extends UaNode> extends FwComponent {
     @Autowired
     OpcuaService opcuaService;
 
-    public OpcuaService getOpcuaServer(){
+    public OpcuaService getOpcuaServer() {
         return this.opcuaService;
     }
 
@@ -29,7 +29,7 @@ public abstract class FwBaseUaComponent<T extends UaNode> extends FwComponent {
         }
     }
 
-    protected void beforePropStart(){
+    protected void beforePropStart() {
         var node = this.createUaNode();
         this.getParentNode().addComponent(node);
         this._thisNode = node;
@@ -37,7 +37,7 @@ public abstract class FwBaseUaComponent<T extends UaNode> extends FwComponent {
 
 
     public void onChanged(FwProperty property, FwContext context) {
-        super.onChanged(property,context);
+        super.onChanged(property, context);
     }
 
     T _thisNode;

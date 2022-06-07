@@ -1,13 +1,10 @@
 package com.pxccn.PxcDali2.server.framework;
 
-import com.pxccn.PxcDali2.server.util.ArrayUtil;
+import com.pxccn.PxcDali2.common.ArrayUtil;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.core.AmqpTemplate;
-import org.springframework.amqp.support.AmqpHeaders;
 
 import java.lang.ref.WeakReference;
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 @Slf4j
 public class FwProperty<T> extends FwObject implements IFwCompLifecycle {

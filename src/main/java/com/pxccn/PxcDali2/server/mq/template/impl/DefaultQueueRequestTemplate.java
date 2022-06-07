@@ -6,7 +6,7 @@
 //import com.pxccn.PxcDali2.server.mq.message.QueueMsg;
 //import com.pxccn.PxcDali2.server.mq.message.QueueMsgMetadata;
 //import com.pxccn.PxcDali2.server.mq.template.*;
-//import com.pxccn.PxcDali2.server.util.LcsThreadFactory;
+//import com.pxccn.PxcDali2.common.LcsThreadFactory;
 //import lombok.Builder;
 //import lombok.Getter;
 //import lombok.extern.slf4j.Slf4j;

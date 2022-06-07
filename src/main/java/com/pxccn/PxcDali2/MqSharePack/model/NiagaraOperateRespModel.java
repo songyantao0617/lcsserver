@@ -4,7 +4,6 @@ import com.google.protobuf.ByteString;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 import java.io.*;
-import java.util.UUID;
 
 public class NiagaraOperateRespModel implements IPbModel<LcsProtos.perOperateResp> {
 

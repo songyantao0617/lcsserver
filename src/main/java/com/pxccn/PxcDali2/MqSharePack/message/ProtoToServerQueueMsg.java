@@ -3,10 +3,10 @@ package com.pxccn.PxcDali2.MqSharePack.message;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
-import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.CabinetStatusWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.RealtimeStatusWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
+import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.GeneratedMessageV3> implements QueueMsg {
 
@@ -18,7 +18,7 @@ public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.Genera
         return this.cabinetId;
     }
 
-    public static class ToServerMsgParam{
+    public static class ToServerMsgParam {
         public long getTimestamp() {
             return timestamp;
         }
@@ -46,7 +46,8 @@ public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.Genera
         long timestamp;
         ProtoHeaders headers;
         int cabinetId;
-        public ToServerMsgParam(long timestamp,ProtoHeaders headers,int cabinetId){
+
+        public ToServerMsgParam(long timestamp, ProtoHeaders headers, int cabinetId) {
             this.timestamp = timestamp;
             this.headers = headers;
             this.cabinetId = cabinetId;
@@ -54,7 +55,7 @@ public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.Genera
     }
 
     public ProtoToServerQueueMsg(ToServerMsgParam param) {
-        this(param.timestamp,param.cabinetId,param.headers);
+        this(param.timestamp, param.cabinetId, param.headers);
     }
 
     public ProtoToServerQueueMsg(long timestamp, int cabinetId, ProtoHeaders headers) {
@@ -71,7 +72,6 @@ public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.Genera
 
 
     protected abstract T.Builder internal_get_payload();
-
 
 
     @Override

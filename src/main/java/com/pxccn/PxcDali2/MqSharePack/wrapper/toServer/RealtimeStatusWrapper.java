@@ -1,16 +1,12 @@
 package com.pxccn.PxcDali2.MqSharePack.wrapper.toServer;
 
 
-import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.pxccn.PxcDali2.Proto.LcsProtos;
+import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.model.DeviceRealtimeStatusModel;
 import com.pxccn.PxcDali2.MqSharePack.model.LightRealtimeStatusModel;
-import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
-import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
+import com.pxccn.PxcDali2.Proto.LcsProtos;
 
-
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -29,7 +25,7 @@ public class RealtimeStatusWrapper extends ProtoToServerQueueMsg<LcsProtos.Realt
         }
     }
 
-    public RealtimeStatusWrapper(ToServerMsgParam param,List<LightRealtimeStatusModel> lightRealtimeStatus, List<DeviceRealtimeStatusModel> deviceRealtimeStatus){
+    public RealtimeStatusWrapper(ToServerMsgParam param, List<LightRealtimeStatusModel> lightRealtimeStatus, List<DeviceRealtimeStatusModel> deviceRealtimeStatus) {
         super(param);
         this.lightRealtimeStatus = lightRealtimeStatus;
         this.deviceRealtimeStatus = deviceRealtimeStatus;

@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2.server.util;
+package com.pxccn.PxcDali2.common;
 
 public enum CabinetVersion {
     NONE(""),

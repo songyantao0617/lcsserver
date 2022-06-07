@@ -35,7 +35,7 @@ public class NiagaraOperateRequestWrapper extends ProtoToPlcQueueMsg<LcsProtos.N
         this.stopAtError = v.getStopAtError();
     }
 
-    public NiagaraOperateRequestWrapper(ProtoHeaders headers, List<NiagaraOperateRequestModel> operates,boolean stopAtError) {
+    public NiagaraOperateRequestWrapper(ProtoHeaders headers, List<NiagaraOperateRequestModel> operates, boolean stopAtError) {
         super(headers);
         this.operates = operates;
         this.stopAtError = stopAtError;

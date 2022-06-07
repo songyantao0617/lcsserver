@@ -1,16 +1,14 @@
 package com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc;
 
-import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToPlcQueueMsg;
-import com.pxccn.PxcDali2.Util;
+import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 public class PingRequestWrapper extends ProtoToPlcQueueMsg<LcsProtos.PingRequest> {
     public static final String TypeUrl = "type.googleapis.com/PingRequest";
-    private int foo;
-    private int bar;
+    private final int foo;
+    private final int bar;
 
 
     //反序列化使用
@@ -21,7 +19,7 @@ public class PingRequestWrapper extends ProtoToPlcQueueMsg<LcsProtos.PingRequest
         this.bar = v.getBar();
     }
 
-    public PingRequestWrapper(ProtoHeaders headers,int foo, int bar) {
+    public PingRequestWrapper(ProtoHeaders headers, int foo, int bar) {
         super(headers);
         this.foo = foo;
         this.bar = bar;

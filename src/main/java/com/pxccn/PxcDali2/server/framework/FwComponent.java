@@ -1,8 +1,8 @@
 package com.pxccn.PxcDali2.server.framework;
 
+import com.pxccn.PxcDali2.common.ArrayUtil;
 import com.pxccn.PxcDali2.server.framework.Exception.FwAlreadyStoppedException;
 import com.pxccn.PxcDali2.server.framework.Exception.FwRuntimeException;
-import com.pxccn.PxcDali2.server.util.ArrayUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.helpers.MessageFormatter;
 import org.springframework.beans.factory.annotation.Autowired;

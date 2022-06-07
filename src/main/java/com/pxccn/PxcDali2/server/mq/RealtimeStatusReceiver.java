@@ -3,12 +3,11 @@ package com.pxccn.PxcDali2.server.mq;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.RealtimeStatusWrapper;
+import com.pxccn.PxcDali2.common.CabinetVersion;
+import com.pxccn.PxcDali2.common.VersionHelper;
 import com.pxccn.PxcDali2.server.events.LightsRealtimeStatusModelEvent;
-import com.pxccn.PxcDali2.server.util.CabinetVersion;
-import com.pxccn.PxcDali2.server.util.VersionHelper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.Message;
-import org.springframework.amqp.rabbit.annotation.RabbitHandler;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -28,20 +27,20 @@ public class RealtimeStatusReceiver {
         this.doProcess(omsg);
     }
 
-    @RabbitListener(queues = consumerQueue_realtime)
-    public void inComin2(Object omsg) {
-        this.doProcess(omsg);
-    }
-
-    @RabbitListener(queues = consumerQueue_realtime)
-    public void inComing3(Object omsg) {
-        this.doProcess(omsg);
-    }
-
-    @RabbitListener(queues = consumerQueue_realtime)
-    public void inComing4(Object omsg) {
-        this.doProcess(omsg);
-    }
+//    @RabbitListener(queues = consumerQueue_realtime)
+//    public void inComin2(Object omsg) {
+//        this.doProcess(omsg);
+//    }
+//
+//    @RabbitListener(queues = consumerQueue_realtime)
+//    public void inComing3(Object omsg) {
+//        this.doProcess(omsg);
+//    }
+//
+//    @RabbitListener(queues = consumerQueue_realtime)
+//    public void inComing4(Object omsg) {
+//        this.doProcess(omsg);
+//    }
 
     private void doProcess(Object omsg) {
         Message msg = (Message) omsg;

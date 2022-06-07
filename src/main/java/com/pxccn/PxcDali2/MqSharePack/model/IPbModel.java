@@ -1,6 +1,6 @@
 package com.pxccn.PxcDali2.MqSharePack.model;
 
 public interface IPbModel<T extends com.google.protobuf.GeneratedMessageV3> {
-    public T getPb();
+    T getPb();
 
 }

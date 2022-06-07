@@ -4,7 +4,11 @@ public class InvokeParam<T> {
     Class<T> t;
     Object v;
 
-    public InvokeParam(Class<T> type, T value) {
+    public static <T> InvokeParam<T> set(Class<T> type, T value) {
+        return new InvokeParam<T>(type, value);
+    }
+
+    private InvokeParam(Class<T> type, T value) {
         this.v = value;
         this.t = type;
     }

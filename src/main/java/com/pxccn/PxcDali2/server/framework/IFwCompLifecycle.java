@@ -10,5 +10,6 @@ public interface IFwCompLifecycle {
 
     void stopped();
 
-    default void descendantsStopped(){}
+    default void descendantsStopped() {
+    }
 }

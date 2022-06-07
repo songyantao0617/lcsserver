@@ -2,8 +2,9 @@ package com.pxccn.PxcDali2.server.mq;
 
 import org.springframework.amqp.core.*;
 import org.springframework.amqp.rabbit.AsyncRabbitTemplate;
+import org.springframework.amqp.rabbit.connection.ConnectionNameStrategy;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,12 +19,14 @@ public class MqConfigure {
     public static final String switch_ToPlcCommon = "Direct-ToPlcCommon";
 
 
-    @Autowired
-    RabbitTemplate rabbitTemplate;
+    @Bean
+    public ConnectionNameStrategy connectionName(@Value("${LcsServer.name}") String name) {
+        return f -> (name);
+    }
 
     @Bean
-    public DirectExchange ToPlcCommonExchange(){
-        return new DirectExchange(switch_ToPlcCommon,true,false);
+    public DirectExchange ToPlcCommonExchange() {
+        return new DirectExchange(switch_ToPlcCommon, true, false);
     }
 
 
@@ -62,8 +65,8 @@ public class MqConfigure {
     }
 
     @Bean
-    AsyncRabbitTemplate asyncRabbitTemplate(){
-        return new AsyncRabbitTemplate(rabbitTemplate);
+    AsyncRabbitTemplate asyncRabbitTemplate(ObjectProvider<RabbitTemplate> rabbitTemplate) {
+        return new AsyncRabbitTemplate(rabbitTemplate.getIfAvailable());
     }
 
 

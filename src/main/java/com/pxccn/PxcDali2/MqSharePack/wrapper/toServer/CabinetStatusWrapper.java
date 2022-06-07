@@ -1,10 +1,8 @@
 package com.pxccn.PxcDali2.MqSharePack.wrapper.toServer;
 
-import com.google.protobuf.GeneratedMessageV3;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.pxccn.PxcDali2.Proto.LcsProtos;
-import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
+import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -23,12 +21,12 @@ public class CabinetStatusWrapper extends ProtoToServerQueueMsg<LcsProtos.Cabine
     public CabinetStatusWrapper(LcsProtos.ToServerMessage pb) throws InvalidProtocolBufferException {
         super(pb);
         LcsProtos.CabinetStatus v = pb.getPayload().unpack(LcsProtos.CabinetStatus.class);
-        v.getPropsList().forEach(kv->{
-            this.propsMap.put(kv.getK(),kv.getV());
+        v.getPropsList().forEach(kv -> {
+            this.propsMap.put(kv.getK(), kv.getV());
         });
     }
 
-    public CabinetStatusWrapper(ToServerMsgParam param,Map<String, String> propsMap){
+    public CabinetStatusWrapper(ToServerMsgParam param, Map<String, String> propsMap) {
         super(param);
         this.propsMap = propsMap;
     }

@@ -1,17 +1,85 @@
 package com.pxccn.PxcDali2.server.service.rpc;
 
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToPlcQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PingRespWrapper;
-import org.springframework.util.concurrent.ListenableFutureCallback;
+import com.pxccn.PxcDali2.server.mq.rpc.exceptions.BadMessageException;
+import com.pxccn.PxcDali2.server.mq.rpc.exceptions.OperationFailure;
 
-import java.util.List;
-import java.util.function.Consumer;
+import java.util.UUID;
 
 public interface CabinetRequestService {
-    void sendPing(RpcTarget target, Consumer<PingRespWrapper> success, Consumer<Throwable> failure);
 
-    void asyncSend(RpcTarget target, ProtoToPlcQueueMsg request, ListenableFutureCallback<ResponseWrapper> callback);
+    /**
+     * 同步发送命令
+     *
+     * @param target
+     * @param request
+     * @return
+     * @throws InvalidProtocolBufferException
+     * @throws BadMessageException
+     * @throws OperationFailure
+     */
+    ResponseWrapper syncSend(RpcTarget target, ProtoToPlcQueueMsg request) throws InvalidProtocolBufferException, BadMessageException, OperationFailure;
 
-    void invokeMethodAsync(RpcTarget target, String bComponentOrd, String methodName, List<InvokeParam> params, Consumer<Object> success, Consumer<Throwable> failure);
+    /**
+     * 异步发送命令
+     *
+     * @param target
+     * @param request
+     * @return
+     */
+    ListenableFuture<ResponseWrapper> asyncSend(RpcTarget target, ProtoToPlcQueueMsg request);
+
+    /**
+     * 异步调用控制器全局函数
+     *
+     * @param target
+     * @param bComponentOrd
+     * @param methodName
+     * @param params
+     */
+
+    ListenableFuture<Object> invokeMethodAsync(RpcTarget target, String bComponentOrd, String methodName, InvokeParam... params);
+
+    /**
+     * 异步读取 常规资源的 Property
+     *
+     * @param target
+     * @param slotOrd
+     * @return
+     */
+    ListenableFuture<String> readPropertyValueAsync(RpcTarget target, String slotOrd);
+
+    /**
+     * 异步读取 UUID资源的 Property
+     *
+     * @param target
+     * @param resourceUuid
+     * @param slotOrd
+     * @return
+     */
+    ListenableFuture<String> readPropertyValueAsync(RpcTarget target, UUID resourceUuid, String slotOrd);
+
+    /**
+     * 异步写入 常规资源的 Property
+     *
+     * @param target
+     * @param slotOrd
+     * @param newValue
+     * @return
+     */
+    ListenableFuture<Void> writePropertyValueAsync(RpcTarget target, String slotOrd, String newValue);
+
+    /**
+     * 异步写入 UUID资源的 Property
+     *
+     * @param target
+     * @param resourceUuid
+     * @param slotOrd
+     * @param newValue
+     * @return
+     */
+    ListenableFuture<Void> writePropertyValueAsync(RpcTarget target, UUID resourceUuid, String slotOrd, String newValue);
 }

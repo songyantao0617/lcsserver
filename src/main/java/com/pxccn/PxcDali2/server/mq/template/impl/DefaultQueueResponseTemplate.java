@@ -2,7 +2,7 @@
 //
 //import com.pxccn.PxcDali2.server.mq.message.QueueMsg;
 //import com.pxccn.PxcDali2.server.mq.template.*;
-//import com.pxccn.PxcDali2.server.util.LcsThreadFactory;
+//import com.pxccn.PxcDali2.common.LcsThreadFactory;
 //import lombok.Builder;
 //import lombok.extern.slf4j.Slf4j;
 //import org.thingsboard.common.util.ThingsBoardThreadFactory;

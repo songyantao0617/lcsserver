@@ -2,7 +2,6 @@ package com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
@@ -21,8 +20,8 @@ public class PingRespWrapper extends ResponseWrapper<LcsProtos.PingResp> {
         return cabinetName;
     }
 
-    private int foo;
-    private int bar;
+    private final int foo;
+    private final int bar;
     String cabinetName;
 
 
@@ -47,7 +46,7 @@ public class PingRespWrapper extends ResponseWrapper<LcsProtos.PingResp> {
         this.cabinetName = v.getCabinetName();
     }
 
-    public PingRespWrapper(ResponseParam param,int foo, int bar, String cabinetName){
+    public PingRespWrapper(ResponseParam param, int foo, int bar, String cabinetName) {
         super(param);
         this.foo = foo;
         this.bar = bar;

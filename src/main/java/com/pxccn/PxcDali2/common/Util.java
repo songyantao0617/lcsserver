@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2;
+package com.pxccn.PxcDali2.common;
 
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
 import com.pxccn.PxcDali2.Proto.LcsProtos;

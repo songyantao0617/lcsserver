@@ -1,13 +1,13 @@
 package com.pxccn.PxcDali2.server.space.cabinets;
 
 import com.prosysopc.ua.nodes.UaNode;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.CabinetStatusWrapper;
+import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
 import com.pxccn.PxcDali2.server.events.CabinetAliveChangedEvent;
 import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.CabinetStatusWrapper;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
-import com.pxccn.PxcDali2.server.util.annotation.FwComponentAnnotation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ConfigurableApplicationContext;
@@ -48,7 +48,7 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
     }
 
     public void onChanged(FwProperty property, FwContext context) {
-        super.onChanged(property,context);
+        super.onChanged(property, context);
         if (property == IsAlive) {
             var tp = System.currentTimeMillis();
             if (IsAlive.get()) {

@@ -6,7 +6,6 @@ import com.pxccn.PxcDali2.MqSharePack.model.NiagaraOperateRespModel;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
-import java.io.Serializable;
 import java.util.List;
 import java.util.stream.Collectors;
 

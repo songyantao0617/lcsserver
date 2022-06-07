@@ -1,12 +1,9 @@
 package com.pxccn.PxcDali2.MqSharePack.wrapper.toServer;
 
-import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.NiagaraOperateRespWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PingRespWrapper;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PlcResponse;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 public class ResponseWrapper<T extends com.google.protobuf.GeneratedMessageV3> extends ProtoToServerQueueMsg<LcsProtos.Response> {
@@ -30,8 +27,8 @@ public class ResponseWrapper<T extends com.google.protobuf.GeneratedMessageV3> e
         return exceptionMessage;
     }
 
-    private LcsProtos.Response.Status status;
-    private String exceptionMessage;
+    private final LcsProtos.Response.Status status;
+    private final String exceptionMessage;
 
     public static class ResponseParam {
         public ToServerMsgParam getTsmp() {

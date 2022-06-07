@@ -1,4 +1,4 @@
-package com.pxccn.PxcDali2.server.util;
+package com.pxccn.PxcDali2.common;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
@@ -6,7 +6,7 @@ import java.util.stream.Collectors;
 public class VersionHelper {
     public static CabinetVersion GetCabinetVersionFromId(String id) {
 
-        if (id == null){
+        if (id == null) {
             return CabinetVersion.NONE;
         }
 

@@ -8,33 +8,33 @@ import org.springframework.util.StopWatch;
  * It is a replacement for any measurements with a wall-clock like System.currentTimeMillis()
  * It is not affected by leap second, day-light saving and wall-clock adjustments by manual or network time synchronization
  * The main features is a single call for common use cases:
- *  - create and start: TbStopWatch sw = TbStopWatch.startNew()
- *  - stop and get: sw.stopAndGetTotalTimeMillis() or sw.stopAndGetLastTaskTimeMillis()
- * */
+ * - create and start: TbStopWatch sw = TbStopWatch.startNew()
+ * - stop and get: sw.stopAndGetTotalTimeMillis() or sw.stopAndGetLastTaskTimeMillis()
+ */
 public class myStopWatch extends StopWatch {
 
-    public static myStopWatch startNew(){
+    public static myStopWatch startNew() {
         myStopWatch stopWatch = new myStopWatch();
         stopWatch.start();
         return stopWatch;
     }
 
-    public long stopAndGetTotalTimeMillis(){
+    public long stopAndGetTotalTimeMillis() {
         stop();
         return getTotalTimeMillis();
     }
 
-    public long stopAndGetTotalTimeNanos(){
+    public long stopAndGetTotalTimeNanos() {
         stop();
         return getLastTaskTimeNanos();
     }
 
-    public long stopAndGetLastTaskTimeMillis(){
+    public long stopAndGetLastTaskTimeMillis() {
         stop();
         return getLastTaskTimeMillis();
     }
 
-    public long stopAndGetLastTaskTimeNanos(){
+    public long stopAndGetLastTaskTimeNanos() {
         stop();
         return getLastTaskTimeNanos();
     }

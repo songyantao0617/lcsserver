@@ -10,7 +10,7 @@ public class CabinetStatusMqCompEvent extends ToCabinetsManagerCompEvent {
         this.message = message;
     }
 
-    public CabinetStatusWrapper getMessage(){
+    public CabinetStatusWrapper getMessage() {
         return this.message;
     }
 

@@ -1,15 +1,16 @@
 package com.pxccn.PxcDali2.server.space.cabinets;
+
+import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
-import com.pxccn.PxcDali2.server.util.annotation.FwComponentAnnotation;
 
 import java.util.Arrays;
 import java.util.Map;
 
 @FwComponentAnnotation
 public class Props extends FwUaComponent<Props.CabinetStatusNode> {
-    public void accept(Map<String,String> propMap) {
-        propMap.forEach((k, v)->{
+    public void accept(Map<String, String> propMap) {
+        propMap.forEach((k, v) -> {
             var p = this.getProperty(k);
             if (p != null) {
                 p.set(v);

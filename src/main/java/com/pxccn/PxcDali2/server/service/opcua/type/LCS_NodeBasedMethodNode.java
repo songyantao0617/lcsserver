@@ -14,8 +14,6 @@ import com.prosysopc.ua.stack.builtintypes.*;
 import com.prosysopc.ua.stack.core.*;
 import com.prosysopc.ua.stack.utils.NumericRange;
 import com.prosysopc.ua.types.opcua.server.FolderTypeNode;
-
-
 import com.pxccn.PxcDali2.server.service.opcua.LcsNodeManager;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 

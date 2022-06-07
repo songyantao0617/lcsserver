@@ -4,7 +4,7 @@ import com.pxccn.PxcDali2.MqSharePack.model.LightRealtimeStatusModel;
 
 import java.util.List;
 
-public class LightsRealtimeStatusModelEvent extends FwBaseEvent{
+public class LightsRealtimeStatusModelEvent extends FwBaseEvent {
     List<LightRealtimeStatusModel> modelList;
 
     public List<LightRealtimeStatusModel> getModelList() {

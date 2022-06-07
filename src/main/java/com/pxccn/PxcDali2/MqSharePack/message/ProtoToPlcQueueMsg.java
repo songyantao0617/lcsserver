@@ -4,9 +4,8 @@ package com.pxccn.PxcDali2.MqSharePack.message;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.NiagaraOperateRequestWrapper;
-import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.PingRequestWrapper;
-import com.pxccn.PxcDali2.Util;
+import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 
 public abstract class ProtoToPlcQueueMsg<T extends com.google.protobuf.GeneratedMessageV3> implements QueueMsg {

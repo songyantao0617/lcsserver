@@ -1,7 +1,7 @@
 package com.pxccn.PxcDali2.MqSharePack.model;
 
 import com.pxccn.PxcDali2.Proto.LcsProtos;
-import com.pxccn.PxcDali2.Util;
+import com.pxccn.PxcDali2.common.Util;
 import org.slf4j.helpers.MessageFormatter;
 
 import java.util.UUID;
@@ -26,13 +26,13 @@ public class LightRealtimeStatusModel implements IPbModel<LcsProtos.LightRealtim
             int rawStatusResponse,
             int rawActualLevelResponse,
             boolean frameError,
-            String exceptionMessage){
+            String exceptionMessage) {
         this.lightId = lightId;
         this.terminalIndex = terminalIndex;
         this.shortAddress = shortAddress;
         this.timestamp = timestamp;
         this.rawStatusResponse = rawStatusResponse;
-        this.rawActualLevelResponse= rawActualLevelResponse;
+        this.rawActualLevelResponse = rawActualLevelResponse;
         this.frameError = frameError;
         this.exceptionMessage = exceptionMessage;
     }

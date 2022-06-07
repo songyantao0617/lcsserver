@@ -1,5 +1,7 @@
 package com.pxccn.PxcDali2.server.service.rpc.impl;
 
+import com.google.common.util.concurrent.*;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToPlcQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.model.NiagaraOperateRequestModel;
@@ -9,23 +11,26 @@ import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.NiagaraOperateRespWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PingRespWrapper;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
-import com.pxccn.PxcDali2.Util;
-import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
+import com.pxccn.PxcDali2.common.LcsExecutors;
+import com.pxccn.PxcDali2.common.Util;
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.BadMessageException;
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.OperationFailure;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
 import com.pxccn.PxcDali2.server.service.rpc.InvokeParam;
+import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.amqp.rabbit.AsyncRabbitTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.concurrent.ListenableFuture;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 
+import javax.annotation.PostConstruct;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.function.Consumer;
 
 @Service
@@ -37,88 +42,51 @@ public class CabinetRequestServiceImpl implements CabinetRequestService {
     @Autowired
     AsyncRabbitTemplate asyncRabbitTemplate;
 
+    private ExecutorService executor;
+//    private ScheduledExecutorService timeoutExecutor;
 
-    public void asyncSend(RpcTarget target, ProtoToPlcQueueMsg request, ListenableFutureCallback<ResponseWrapper> callback) {
-        ListenableFuture<Object> future = asyncRabbitTemplate.convertSendAndReceive(target.getExchange(), target.getRoutingKey(), request.getData());
-        future.addCallback(new ListenableFutureCallback<>() {
-            @Override
-            public void onSuccess(Object result) {
-                try {
-                    ProtoToServerQueueMsg m = ProtoToServerQueueMsg.FromData((byte[]) result);
-                    checkRespType(ResponseWrapper.class, m);
-                    LcsProtos.Response.Status status = ((ResponseWrapper) m).getStatus();
-                    switch (status.getNumber()) {
-                        case LcsProtos.Response.Status.SUCCESS_VALUE:
-                            callback.onSuccess((ResponseWrapper) m);
-                            break;
-                        case LcsProtos.Response.Status.FAILURE_VALUE:
-                        case LcsProtos.Response.Status.FATAL_VALUE:
-                            throw new OperationFailure(((ResponseWrapper) m).getExceptionMessage());
-                    }
-
-
-                } catch (Exception e) {
-                    onFailure(e);
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable ex) {
-                callback.onFailure(ex);
-            }
-        });
+    @PostConstruct
+    public void initExecutor() {
+        executor = LcsExecutors.newWorkStealingPool(40, getClass());
+//        timeoutExecutor = Executors.newScheduledThreadPool(2, LcsThreadFactory.forName("lcs-response-timeout"));
     }
 
-    public void sendPing(RpcTarget target, Consumer<PingRespWrapper> success, Consumer<Throwable> failure) {
-        this.asyncSend(target, new PingRequestWrapper(Util.NewCommonHeaderForClient(), 12, 34), new ListenableFutureCallback<>() {
-            @Override
-            public void onSuccess(ResponseWrapper result) {
-                try {
-                    checkRespType(PingRespWrapper.class, result);
-                    success.accept((PingRespWrapper) result);
-
-                } catch (Exception e) {
-                    onFailure(e);
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable ex) {
-                failure.accept(ex);
-            }
-        });
-    }
-
-    public void invokeMethodAsync(RpcTarget target, String bComponentOrd, String methodName, List<InvokeParam> params, Consumer<Object> success, Consumer<Throwable> failure) {
-        var model = NiagaraOperateRequestModel.INVOKE_METHOD(bComponentOrd, methodName);
-        if (params != null) {
-            params.forEach(p -> {
-                model.getMethodParameter().add(p.getCls(), p.getValue());
-            });
+    public ResponseWrapper syncSend(RpcTarget target, ProtoToPlcQueueMsg request) throws InvalidProtocolBufferException, BadMessageException, OperationFailure {
+        var reply = (byte[]) rabbitTemplate.convertSendAndReceive(target.getExchange(), target.getRoutingKey(), request.getData());
+        ProtoToServerQueueMsg m = ProtoToServerQueueMsg.FromData(reply);
+        checkExpectType(ResponseWrapper.class, m);
+        LcsProtos.Response.Status status = ((ResponseWrapper) m).getStatus();
+        switch (status.getNumber()) {
+            case LcsProtos.Response.Status.SUCCESS_VALUE:
+                return ((ResponseWrapper) m);
+            case LcsProtos.Response.Status.FAILURE_VALUE:
+            case LcsProtos.Response.Status.FATAL_VALUE:
+                throw new OperationFailure(((ResponseWrapper) m).getExceptionMessage());
+            default:
+                throw new IllegalStateException("internal error");
         }
-        if (log.isTraceEnabled())
-            log.trace("发起异步函数调用,{},函数名：{}", target.toFriendlyString(), methodName);
+    }
 
-        this.asyncSend(target
-                , new NiagaraOperateRequestWrapper(Util.NewCommonHeaderForClient(), Collections.singletonList(model), false)
-                , new ListenableFutureCallback<>() {
+
+    public ListenableFuture<ResponseWrapper> asyncSend(RpcTarget target, ProtoToPlcQueueMsg request) {
+        var future = asyncRabbitTemplate.convertSendAndReceive(target.getExchange(), target.getRoutingKey(), request.getData());
+        SettableFuture<ResponseWrapper> gFuture = SettableFuture.create();//转换为 guava
+        future.addCallback(
+                new ListenableFutureCallback<Object>() {
                     @Override
-                    public void onSuccess(ResponseWrapper result) {
+                    public void onSuccess(Object result) {
                         try {
-                            checkRespType(NiagaraOperateRespWrapper.class, result);
-                            var a = (NiagaraOperateRespWrapper) result;
-                            if (a.getResponseList().size() != 1) {
-                                throw new IllegalStateException("报文不正确");
+                            ProtoToServerQueueMsg m = ProtoToServerQueueMsg.FromData((byte[]) result);
+                            checkExpectType(ResponseWrapper.class, m);
+                            LcsProtos.Response.Status status = ((ResponseWrapper) m).getStatus();
+                            switch (status.getNumber()) {
+                                case LcsProtos.Response.Status.SUCCESS_VALUE:
+                                    gFuture.set((ResponseWrapper) m);
+                                    break;
+                                case LcsProtos.Response.Status.FAILURE_VALUE:
+                                case LcsProtos.Response.Status.FATAL_VALUE:
+                                    throw new OperationFailure(((ResponseWrapper) m).getExceptionMessage());
                             }
-                            var b = a.getResponseList().get(0);
-                            if (b.isSuccess()) {
-                                if (log.isTraceEnabled())
-                                    log.trace("异步函数调用成功,函数名：{}", methodName);
-                                success.accept(b.getReturnValue());
-                            } else {
-                                throw new IllegalStateException(b.getExceptionReason());
-                            }
-
                         } catch (Exception e) {
                             onFailure(e);
                         }
@@ -126,60 +94,146 @@ public class CabinetRequestServiceImpl implements CabinetRequestService {
 
                     @Override
                     public void onFailure(Throwable ex) {
-                        failure.accept(ex);
+                        gFuture.setException(ex);
                     }
                 });
+        return gFuture;
+    }
+
+    public static <T> FutureCallback on(Class<T> expectedType, Consumer<T> success, Consumer<Throwable> failure) {
+        return new FutureCallback() {
+            @Override
+            public void onSuccess(Object result) {
+                try {
+                    checkExpectType(expectedType, result);
+                    success.accept((T) result);
+                } catch (Throwable e) {
+                    onFailure(e);
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                failure.accept(t);
+            }
+        };
+    }
+
+    public void test2() {
+        var future = this.asyncSend(RpcTarget.CommonToAllCabinet, new PingRequestWrapper(Util.NewCommonHeaderForClient(), 12, 34));
+        Futures.addCallback(future, on(PingRespWrapper.class, (a) -> {
+            log.info("AAAA");
+        }, (ex) -> {
+            log.error(ex.getMessage());
+        }), executor);
+    }
+
+    public ListenableFuture<Object> invokeMethodAsync(RpcTarget target, String bComponentOrd, String methodName, InvokeParam... params) {
+        var model = NiagaraOperateRequestModel.INVOKE_METHOD(bComponentOrd, methodName);
+        if (params != null) {
+            Arrays.stream(params).forEach(p -> {
+                model.getMethodParameter().add(p.getCls(), p.getValue());
+            });
+        }
+        if (log.isTraceEnabled())
+            log.trace("发起异步函数调用,{},函数名：{}", target.toFriendlyString(), methodName);
+
+        return Futures.transform(this.asyncSend(
+                target
+                , new NiagaraOperateRequestWrapper(Util.NewCommonHeaderForClient()
+                        , Collections.singletonList(model)
+                        , false
+                )
+        ), input -> {
+            checkExpectType(NiagaraOperateRespWrapper.class, input);
+            var a = (NiagaraOperateRespWrapper) input;
+            if (a.getResponseList().size() != 1) {
+                throw new IllegalStateException("报文不正确");
+            }
+            var b = a.getResponseList().get(0);
+            if (b.isSuccess()) {
+                if (log.isTraceEnabled())
+                    log.trace("异步函数调用成功,函数名：{}", methodName);
+                return b.getReturnValue();
+            } else {
+                throw new IllegalStateException(b.getExceptionReason());
+            }
+        }, executor);
+
+
+    }
+
+    public ListenableFuture<String> readPropertyValueAsync(RpcTarget target, UUID resourceUuid, String slotOrd) {
+        return this.readPropertyValueAsync(target, NiagaraOperateRequestModel.READ_PROPERTY(resourceUuid, slotOrd));
+    }
+
+    public ListenableFuture<String> readPropertyValueAsync(RpcTarget target, String slotOrd) {
+        return this.readPropertyValueAsync(target, NiagaraOperateRequestModel.READ_PROPERTY(slotOrd));
+    }
+
+    public ListenableFuture<Void> writePropertyValueAsync(RpcTarget target, String slotOrd, String newValue) {
+        return this.writePropertyValueAsync(target, NiagaraOperateRequestModel.WRITE_PROPERTY(slotOrd, newValue));
+    }
+
+    public ListenableFuture<Void> writePropertyValueAsync(RpcTarget target, UUID resourceUuid, String slotOrd, String newValue) {
+        return this.writePropertyValueAsync(target, NiagaraOperateRequestModel.WRITE_PROPERTY(resourceUuid, slotOrd, newValue));
+    }
+
+
+    private ListenableFuture<Void> writePropertyValueAsync(RpcTarget target, NiagaraOperateRequestModel request) {
+        var responseFuture = this.asyncSend(target, new NiagaraOperateRequestWrapper(Util.NewCommonHeaderForClient(), Collections.singletonList(request), false));
+        SettableFuture<Void> future = SettableFuture.create();
+        Futures.addCallback(responseFuture, on(NiagaraOperateRespWrapper.class, (resp) -> {
+            if (resp.getResponseList().size() != 1) {
+                throw new IllegalStateException("返回执行结果的数量错误");
+            }
+            var m = resp.getResponseList().get(0);
+            if (m.isSuccess()) {
+                future.set(null);
+            } else {
+                throw new IllegalStateException(m.getExceptionReason());
+            }
+        }, future::setException), executor);
+        return future;
+    }
+
+    private ListenableFuture<String> readPropertyValueAsync(RpcTarget target, NiagaraOperateRequestModel request) {
+        var responseFuture = this.asyncSend(target, new NiagaraOperateRequestWrapper(Util.NewCommonHeaderForClient(), Collections.singletonList(request), false));
+        SettableFuture<String> future = SettableFuture.create();
+        Futures.addCallback(responseFuture, on(NiagaraOperateRespWrapper.class, (resp) -> {
+            if (resp.getResponseList().size() != 1) {
+                throw new IllegalStateException("返回执行结果的数量错误");
+            }
+            var m = resp.getResponseList().get(0);
+            if (m.isSuccess()) {
+                future.set(m.getTargetValue());
+            } else {
+                throw new IllegalStateException(m.getExceptionReason());
+            }
+        }, future::setException), executor);
+        return future;
     }
 
     public void test() {
 
-        this.invokeMethodAsync(
-                RpcTarget.CommonToAllCabinet,
-                "station:|slot:/LightControlSystem",
-                "testRpc",
-                Arrays.asList(
-                        new InvokeParam<>(Integer.TYPE, 123),
-                        new InvokeParam<>(String.class, "dd")),
-                (rtn) -> {
-                    log.info("调,{}", rtn);
-                }, (ex) -> {
-                });
-//        var model = NiagaraOperateRequestModel.READ_PROPERTY("station:|slot:/LightControlSystem/lightManager/DALI2_BUS_03/light1/randomAddress");
-//        var model = NiagaraOperateRequestModel.READ_PROPERTY(UUID.fromString("6508d494-738c-48c0-bbef-584efa91c893"),"randomAddress");
-//        var model = NiagaraOperateRequestModel.WRITE_PROPERTY("station:|slot:/LightControlSystem/description",String.valueOf(System.currentTimeMillis()));
-//        var model = NiagaraOperateRequestModel.INVOKE_METHOD("station:|slot:/LightControlSystem","testRpc");
-//        var model = NiagaraOperateRequestModel.INVOKE_METHOD("station:|slot:/LightControlSystem", "testRpc");
-//        model.getMethodParameter().add(Integer.TYPE, 159);
-//        model.getMethodParameter().add(String.class, "FUCK");
-//        this.asyncSend(RpcTarget.CommonToAllCabinet
-//                , new NiagaraOperateRequestWrapper(Util.NewCommonHeaderForClient(), Collections.singletonList(model), false)
-//                , new ListenableFutureCallback<>() {
-//                    @Override
-//                    public void onSuccess(ResponseWrapper result) {
-//                        try {
-//                            checkRespType(NiagaraOperateRespWrapper.class, result);
-//                            var a = (NiagaraOperateRespWrapper) result;
-//                            a.getResponseList().forEach(i -> {
-//                                log.info("{}--{}--{}--{}", i.isSuccess(), i.getExceptionReason(), i.getTargetValue(), i.getReturnValue());
-//                            });
-//
-////                            success.accept((NiagaraOperateRespWrapper) result);
-//
-//                        } catch (Exception e) {
-//                            onFailure(e);
-//                        }
-//                    }
-//
-//                    @Override
-//                    public void onFailure(Throwable ex) {
-//                        log.error(ex.getMessage());
-//
-//                    }
-//                });
+        var aa = invokeMethodAsync(RpcTarget.CommonToAllCabinet, "station:|slot:/LightControlSystem", "testRpc2");
+
+        var a = this.writePropertyValueAsync(RpcTarget.CommonToAllCabinet, "station:|slot:/LightControlSystem/description", String.valueOf(System.currentTimeMillis()));
+        Futures.addCallback(a, new FutureCallback<Void>() {
+            @Override
+            public void onSuccess(@Nullable Void result) {
+                log.info("WriteSuccess");
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.error(t.getMessage());
+            }
+        }, MoreExecutors.directExecutor());
     }
 
 
-    private void checkRespType(Class<?> expectType, Object testInstance) throws BadMessageException {
+    public static void checkExpectType(Class<?> expectType, Object testInstance) {
         if (!expectType.isInstance(testInstance)) {
             throw new BadMessageException("内部错误！ 预期得到类型‘" + expectType.getSimpleName() + "',但接收到类型’" + testInstance.getClass().getSimpleName() + "'");
         }

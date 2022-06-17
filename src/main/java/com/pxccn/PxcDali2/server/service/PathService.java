@@ -33,7 +33,7 @@ public class PathService implements SmartLifecycle {
 
     @Override
     public void start() {
-        this.sss();
+//        this.sss();
     }
 
     @Override

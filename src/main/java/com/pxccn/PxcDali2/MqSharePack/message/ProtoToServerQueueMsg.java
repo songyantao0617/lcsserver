@@ -3,9 +3,7 @@ package com.pxccn.PxcDali2.MqSharePack.message;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.CabinetStatusWrapper;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.RealtimeStatusWrapper;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.*;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.GeneratedMessageV3> implements QueueMsg {
@@ -108,6 +106,14 @@ public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.Genera
                 return new RealtimeStatusWrapper(msg);
             case CabinetStatusWrapper.TypeUrl:
                 return new CabinetStatusWrapper(msg);
+            case LightsDetailUploadWrapper.TypeUrl:
+                return new LightsDetailUploadWrapper(msg);
+            case RoomsDetailUploadWrapper.TypeUrl:
+                return new RoomsDetailUploadWrapper(msg);
+            case CabinetSimpleEventWrapper.TypeUrl:
+                return new CabinetSimpleEventWrapper(msg);
+            case CabinetDetailUploadWrapper.TypeUrl:
+                return new CabinetDetailUploadWrapper(msg);
             default:
                 return null;
         }

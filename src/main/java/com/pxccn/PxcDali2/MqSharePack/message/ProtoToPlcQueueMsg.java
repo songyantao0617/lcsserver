@@ -3,8 +3,7 @@ package com.pxccn.PxcDali2.MqSharePack.message;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.NiagaraOperateRequestWrapper;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.PingRequestWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.*;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 
@@ -56,6 +55,12 @@ public abstract class ProtoToPlcQueueMsg<T extends com.google.protobuf.Generated
                 return new PingRequestWrapper(msg);
             case NiagaraOperateRequestWrapper.TypeUrl:
                 return new NiagaraOperateRequestWrapper(msg);
+            case DetailInfoRequestWrapper.TypeUrl:
+                return new DetailInfoRequestWrapper(msg);
+            case PollManagerSettingRequestWrapper.TypeUrl:
+                return new PollManagerSettingRequestWrapper(msg);
+            case CabinetSimpleActionRequestWrapper.TypeUrl:
+                return new CabinetSimpleActionRequestWrapper(msg);
             default:
                 return null;
         }

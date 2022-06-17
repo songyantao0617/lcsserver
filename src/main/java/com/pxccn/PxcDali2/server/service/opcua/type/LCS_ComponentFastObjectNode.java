@@ -4,6 +4,7 @@ import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
 import com.prosysopc.ua.nodes.UaValueNode;
 import com.prosysopc.ua.stack.builtintypes.DataValue;
+import com.prosysopc.ua.stack.builtintypes.DateTime;
 import com.prosysopc.ua.stack.builtintypes.NodeId;
 import com.prosysopc.ua.stack.builtintypes.QualifiedName;
 import com.prosysopc.ua.stack.core.Identifiers;
@@ -129,6 +130,8 @@ public class LCS_ComponentFastObjectNode extends LCS_FastObjectNodeBase {
             return Identifiers.String;
         } else if (t == UUID.class) {
             return Identifiers.String;
+        }else if(t == DateTime.class){
+            return Identifiers.UtcTime;
         }
 
 //        else if (property.getDefaultValue() instanceof BFrozenEnum) {

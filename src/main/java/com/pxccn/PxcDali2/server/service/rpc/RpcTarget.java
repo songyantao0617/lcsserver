@@ -1,10 +1,14 @@
 package com.pxccn.PxcDali2.server.service.rpc;
 
-import static com.pxccn.PxcDali2.server.mq.MqConfigure.switch_ToPlcCommon;
+import static com.pxccn.PxcDali2.server.mq.config.MqConfigure.switch_ToPlcCommon;
 
 public class RpcTarget {
 
     public static RpcTarget CommonToAllCabinet = new RpcTarget(-1);
+
+    public static RpcTarget ToCabinet(int cabinetId){
+        return new RpcTarget(cabinetId);
+    }
 
     public String toFriendlyString() {
         if (this.isAll) {

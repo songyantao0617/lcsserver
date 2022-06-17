@@ -191,7 +191,17 @@ public class UaHelperUtil {
                 Arrays.fill(ret, UnsignedLong.valueOf(0));
                 return ret;
             }
-        } else if (dataType.equals(Identifiers.Double)) {
+        }
+        else if (dataType.equals(Identifiers.DateTime)||dataType.equals(Identifiers.UtcTime)) {
+            if (arrLength == -1) {
+                return DateTime.MIN_VALUE;
+            } else {
+                DateTime[] ret = new DateTime[arrLength];
+                Arrays.fill(ret, DateTime.MIN_VALUE);
+                return ret;
+            }
+        }
+        else if (dataType.equals(Identifiers.Double)) {
             if (arrLength == -1) {
                 return Double.valueOf(-1);
             } else {

@@ -1,6 +1,7 @@
 package com.pxccn.PxcDali2.common.annotation;
 
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
@@ -13,5 +14,6 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Component
 @Scope(value = "prototype")
+
 public @interface FwComponentAnnotation {
 }

@@ -39,10 +39,10 @@
         </dependency>
         <dependency>
             <groupId>com.prosysopc.ua</groupId>
-            <artifactId>prosys-opc-ua-sdk-client-server-evaluation</artifactId>
-            <version>4.4.0-1240</version>
+            <artifactId>prosys-opc-ua-sdk-client-server</artifactId>
+            <version>4.5.8-1468</version>
             <scope>system</scope>
-            <systemPath>${project.basedir}/src/main/resources/lib/prosys-opc-ua-sdk-client-server-evaluation-4.4.0-1240.jar</systemPath>
+            <systemPath>${project.basedir}/lib/prosys-opc-ua-sdk-client-server-4.5.8-1468.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -115,18 +115,67 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-maven-plugin</artifactId>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
                 <configuration>
-                    <includeSystemScope>true</includeSystemScope>
+                    <archive>
+                        <manifest>
+                            <!--运行jar包时运行的主类，要求类全名-->
+                            <mainClass>com.pxccn.PxcDali2.PxcDali2Application</mainClass>
+                            <!-- 指定依赖的时候声明前缀 -->
+                            <classpathPrefix>lib/</classpathPrefix>
+                            <!-- 是否指定项目classpath下的依赖 -->
+                            <addClasspath>true</addClasspath>
+                        </manifest>
+                        <manifestEntries>
+                            <Class-Path>/</Class-Path>
+                            <Class-Path>lib/prosys-opc-ua-sdk-client-server-4.5.8-1468.jar</Class-Path>
+                        </manifestEntries>
+                    </archive>
+
                     <excludes>
-                        <exclude>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                        </exclude>
+                        <!-- 去掉不需要打进 jar 的配置文件 -->
+                        <exclude>**/*.yaml</exclude>
+                        <exclude>lib</exclude>
+<!--                        <exclude>**/*.sh</exclude>-->
+<!--                        <exclude>**/bin</exclude>-->
+<!--                        <exclude>**/config</exclude>-->
                     </excludes>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-lib</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>target/lib</outputDirectory>
+                            <excludeTransitive>false</excludeTransitive>
+                            <stripVersion>false</stripVersion>
+                            <includeScope>runtime</includeScope>
+                            <includeScope>system</includeScope>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.springframework.boot</groupId>-->
+<!--                <artifactId>spring-boot-maven-plugin</artifactId>-->
+<!--                <configuration>-->
+<!--                    <includeSystemScope>true</includeSystemScope>-->
+<!--                    <excludes>-->
+<!--                        <exclude>-->
+<!--                            <groupId>org.projectlombok</groupId>-->
+<!--                            <artifactId>lombok</artifactId>-->
+<!--                        </exclude>-->
+<!--                    </excludes>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
 <!--            <plugin>-->
 <!--                <groupId>org.apache.maven.plugins</groupId>-->
 <!--                <artifactId>maven-dependency-plugin</artifactId>-->

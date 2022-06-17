@@ -2,7 +2,7 @@ syntax = "proto3";
 option java_package = "com.pxccn.PxcDali2.Proto";
 option java_outer_classname = "LcsProtos";
 import "google/protobuf/any.proto";
-
+//UUID
 message Uuid{
   int64 MSB = 1;
   int64 LSB = 2;
@@ -13,35 +13,118 @@ message sKsV{
   string V = 2;
 }
 
-//单个灯具的实时状态信息
-message LightRealtimeStatus{
-  //灯具识别
-  Uuid lightId = 1;
+enum LightTypeEnum{
+  DALI2 = 0;
+  DO = 1;
+}
+
+message CommonRealtimeStatus{
+  Uuid id = 1;
   int32 terminalIndex = 2;
   int32 shortAddress = 3;
   int64 timestamp = 4;
-
-  int32 rawStatusResponse = 5;
-  int32 rawActualLevelResponse = 6;
-
-  bool frameError = 7;
-  string exceptionMessage = 8;
+  string exceptionMessage = 5;
 }
 
-message DeviceRealtimeStatus{
+//DALI2单个灯具的实时状态信息
+message Dali2LightRealtimeStatus{
+  CommonRealtimeStatus common = 1;
+  int32 rawStatusResponse = 2;
+  int32 rawActualLevelResponse = 3;
+  bool frameError = 4;
+}
+
+//DO单个灯具的实时状态信息
+message DoLightRealtimeStatus{
+  CommonRealtimeStatus common = 1;
+  bool currentValue = 2;
+}
+//TODO
+message Dali2DeviceRealtimeStatus{
 
 }
 
+//灯具与开关实时状态报文
 message RealtimeStatus{
-  repeated LightRealtimeStatus lightStatus = 1;
-  repeated DeviceRealtimeStatus deviceStatus = 2;
+  repeated Dali2LightRealtimeStatus dali2LightStatus = 1;
+  repeated Dali2DeviceRealtimeStatus dali2DeviceStatus = 2;
+  repeated DoLightRealtimeStatus doLightStatus = 3;
 }
 
-
-
-
+//控制柜实时状态报文
 message CabinetStatus{
   repeated sKsV props = 1;
+}
+//灯具详细信息上传报文
+message LightsDetailUpload{
+  message LightCommonDetail{
+    Uuid uuid = 1;
+    string lightName = 2;
+    string description = 3;
+    int32 axis_x = 4;
+    int32 axis_y = 5;
+    int32 axis_z = 6;
+    int32 shortAddress = 7;
+    int32 terminalIndex = 8;
+    bool isBlinking = 9;
+  }
+  message Dali2LightDetail{
+    LightCommonDetail common = 1;
+  }
+  message DoLightDetail{
+    LightCommonDetail common = 1;
+  }
+  repeated Dali2LightDetail dali2LightDetail = 1;
+  repeated DoLightDetail doLightDetail = 2;
+}
+//房间详细信息上传报文
+message RoomsDetailUpload{
+  message RoomDetail{
+    Uuid uuid = 1;
+    string roomName = 2;
+    string description = 3;
+    int32 axis_x = 4;
+    int32 axis_y = 5;
+    int32 axis_z = 6;
+    bool isDbBased = 7;
+  }
+  repeated RoomDetail roomDetail = 1;
+}
+//控制柜详细信息上传报文
+message CabinetDetailUpload{
+  string cabinetName = 1;
+  string description = 2;
+  int32 axis_x = 3;
+  int32 axis_y = 4;
+  int32 axis_z = 5;
+  bool isMaintenance = 6;
+}
+//控制器简单事件
+message CabinetSimpleEvent{
+  enum E{
+    RoomAdded = 0;
+    RoomRemoved = 1;
+    RoomInfoChange = 2;
+    LightAdded = 3;
+    LightRemoved = 4;
+    LightInfoChange = 5;
+    CabinetInfoChange = 6;
+  }
+  Uuid uuid = 1;
+  E event = 3;
+}
+//简单操作请求
+message CabinetSimpleActionRequest{
+  enum A{
+    SYNC_DB_BASIC = 0;
+    SYNC_DB_ROOM = 1;
+  }
+  Uuid uuid = 1;
+  A action = 2;
+}
+//简单操作回应
+message CabinetSimpleActionResp{
+
 }
 
 message Event{
@@ -80,6 +163,17 @@ message perOperateResp{
   bytes methodReturn = 4;
 }
 
+//PLC推送相关资源的详细信息请求
+message DetailInfoRequest{
+  bool getAll = 1;
+  repeated Uuid resourceUuids = 2;
+}
+//PLC推送相关资源的详细信息回应
+message DetailInfoResp{
+  int32 uploadedLightsCount = 1;
+  int32 uploadedRoomsCount = 2;
+}
+
 
 message NiagaraOperateRequest{
   repeated perOperateRequest operates = 1;
@@ -90,17 +184,26 @@ message NiagaraOperateResp{
   repeated perOperateResp responses = 1;
 }
 
-message EasyCmdRequest{
-  enum CMD{
-    PURGE_LIGHTS_STATUS_BUFFER = 0;
-  }
-  CMD cmd = 1;
+
+message PollManagerSettingRequest{
+  bool xnormalDelay = 1;
+  int32 normalDelay = 2;
+  bool xhighPriorityDelay = 3;
+  int32 highPriorityDelay = 4;
+  bool xhighPriorityQueueLength = 5;
+  int32 highPriorityQueueLength = 6;
+  bool xhighPriorityBundleSize = 7;
+  int32 highPriorityBundleSize = 8;
+  bool xnormalPriorityBundleSize = 9;
+  int32 normalPriorityBundleSize = 10;
+  bool xnotifyChangeOnly = 11;
+  bool notifyChangeOnly = 12;
+  bool purgeCache = 13;
 }
 
-message EasyCmdResp{
-
+message PollManagerSettingResp{
+  int32 ManagerCount = 1;
 }
-
 
 //南向发送Ping
 message PingRequest{

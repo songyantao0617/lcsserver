@@ -1,9 +1,11 @@
 LcsServer:
-  name: "LCS-Server-1"
+  name: "LCS-1"
   ver: "0.1"
 
 spring:
   rabbitmq:
+    publisher-returns: true
+    publisher-confirm-type: correlated
     virtual-host: LCS
     host: 127.0.0.1  #mq服务器ip,默认为localhost
     #    port: 5672          #mq服务器port,默认为5672
@@ -16,6 +18,9 @@ logging:
     com.pxccn.PxcDali2: debug
     com.pxccn.PxcDali2.server.mq: trace
     com.pxccn.PxcDali2.server.framework: info
+    org.springframework.amqp.rabbit.listener.DirectReplyToMessageListenerContainer: warn
+    org.springframework.amqp.rabbit.listener.DirectMessageListenerContainer: warn
+
 prosys:
   ApplicationName: LCS_Server@hostname
   ApplicationUri: "urn:hostname:OPCUA:LCS_Server"
@@ -26,5 +31,6 @@ prosys:
   UserIssuerCertificateStore: USERS_PKI/CA/issuers
   Port: 52520
   Version: 0.01
+
 
 

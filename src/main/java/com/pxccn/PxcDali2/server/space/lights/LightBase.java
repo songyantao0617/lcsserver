@@ -2,27 +2,61 @@ package com.pxccn.PxcDali2.server.space.lights;
 
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
+import com.prosysopc.ua.stack.builtintypes.LocalizedText;
 import com.prosysopc.ua.stack.builtintypes.Variant;
 import com.prosysopc.ua.stack.core.Identifiers;
-import com.pxccn.PxcDali2.MqSharePack.model.LightRealtimeStatusModel;
+import com.pxccn.PxcDali2.MqSharePack.model.CommonRealtimeStatusModel;
+import com.pxccn.PxcDali2.MqSharePack.model.LightDetailModelBase;
 import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
+import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
+import java.util.Collections;
 import java.util.UUID;
 
 @FwComponentAnnotation
-public class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNode> {
+@Slf4j
+public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNode> {
 
-    FwProperty<String> Name;
+    FwProperty<String> lightName;
+    FwProperty<String> description;
+    FwProperty<Integer> axis_x;
+    FwProperty<Integer> terminalIndex;
+    FwProperty<Integer> axis_y;
+    FwProperty<Integer> axis_z;
+
+    FwProperty<Long> lastInfosUploadedTimestamp;
+    FwProperty<Long> lastRealtimeStatusUploadedTimestamp;
+    FwProperty<Integer> cabinetId;
+    FwProperty<Boolean> isBlinking;
     UUID lightUuid;
 
+    public int getCabinetId() {
+        return cabinetId.get();
+    }
 
-    public void onNewStatus(LightRealtimeStatusModel lrs) {
+    public void setCabinetId(int cabinetId) {
+        this.cabinetId.set(cabinetId);
+    }
 
+    public void onNewStatus(CommonRealtimeStatusModel lrs) {
+        this.lastRealtimeStatusUploadedTimestamp.set(System.currentTimeMillis());
+    }
+
+    public void onDetailUpload(LightDetailModelBase model) {
+        this.lightName.set(model.lightName);
+        this.description.set(model.description);
+        this.axis_x.set(model.axis_x);
+        this.axis_y.set(model.axis_y);
+        this.axis_z.set(model.axis_z);
+        this.terminalIndex.set(model.terminalIndex);
+        this.lastInfosUploadedTimestamp.set(System.currentTimeMillis());
+        this.isBlinking.set(model.isBlinking);
     }
 
 
@@ -32,17 +66,39 @@ public class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNode> {
 
     @PostConstruct
     public void post() {
-        Name = addProperty("nameee", "Name");
+        lightName = addProperty("lightName", "lightName");
+        description = addProperty("description", "description");
+        axis_x = addProperty(0, "axis_x");
+        axis_y = addProperty(0, "axis_y");
+        axis_z = addProperty(0, "axis_z");
+        lastInfosUploadedTimestamp = addProperty(0L, "lastInfosUploadedTimestamp");
+        lastRealtimeStatusUploadedTimestamp = addProperty(0L, "lastRealtimeStatusUploadedTimestamp");
+        cabinetId = addProperty(-1, "cabinetId");
+        terminalIndex = addProperty(-1,"terminalIndex");
+        isBlinking = addProperty(false,"isBlinking");
     }
 
-    public LightsManager getLightManager() {
+    public LightsManager getLightsManager() {
         return (LightsManager) this.getParentComponent();
     }
 
+    @Override
     public UaNode getParentNode() {
-        return this.getLightManager().getLightsFolderNode();
+        return this.getLightsManager().getLightsFolderNode();
     }
 
+    public void onFetchDetailsNow() {
+        log.info("灯具<{}>数据上传执行", this.lightUuid);
+        this.getLightsManager().AskToUpdateLightsInfo(Collections.singletonList(this.lightUuid), this.cabinetId.get());
+    }
+
+    @Override
+    public void onChanged(FwProperty property, FwContext context) {
+        super.onChanged(property, context);
+        if (property == this.lightName) {
+            this.getNode().setDisplayName(new LocalizedText(this.lightName.get()));
+        }
+    }
 
     @Override
     protected LCS_LightBaseNode createUaNode() {
@@ -55,7 +111,16 @@ public class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNode> {
         protected LCS_LightBaseNode(LightBase comp, String qualifiedName, String objLocalizedText) {
             super(comp, qualifiedName, objLocalizedText);
             this.comp = comp;
-            addProperty(comp.Name);
+            addProperty(comp.lightName);
+            addProperty(comp.description);
+            addProperty(comp.axis_x);
+            addProperty(comp.axis_y);
+            addProperty(comp.axis_z);
+            addProperty(comp.lastInfosUploadedTimestamp);
+            addProperty(comp.lastRealtimeStatusUploadedTimestamp);
+            addProperty(comp.cabinetId);
+            addProperty(comp.terminalIndex);
+            addProperty(comp.isBlinking);
             addAdditionalDeclares(methods.values());
         }
 
@@ -65,8 +130,10 @@ public class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNode> {
 
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
-            blink(new UaHelperUtil.MethodArgument[]{new UaHelperUtil.MethodArgument("enable", Identifiers.Boolean)}, null);
+            blink(new UaHelperUtil.MethodArgument[]{new UaHelperUtil.MethodArgument("enable", Identifiers.Boolean)}, null),
+            fetchDetailsNow();
 //            removeThisLight();
+
 
             private UaHelperUtil.MethodArgument[] in = null;
             private UaHelperUtil.MethodArgument[] out = null;
@@ -95,13 +162,10 @@ public class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNode> {
             if (declared == methods.blink) {
 //                comp.blink(BBoolean.make(input[0].booleanValue()));
                 return null;
+            } else if (declared == methods.fetchDetailsNow) {
+                this.comp.onFetchDetailsNow();
+                return null;
             }
-
-
-//            else if (declared == methods.removeThisLight) {
-//                comp.removeThisLight();
-//                return null;
-//            }
             return super.onMethodCall(declared, input);
         }
     }

@@ -1,9 +1,16 @@
 package com.pxccn.PxcDali2.schedule;
 
-import com.pxccn.PxcDali2.learn.Learnmmm;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.DetailInfoRequestWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
+import com.pxccn.PxcDali2.Util;
+import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
 import com.pxccn.PxcDali2.server.service.rpc.impl.CabinetRequestServiceImpl;
 import com.pxccn.PxcDali2.server.space.TopSpace;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -20,13 +27,26 @@ public class CommonScheduler {
     @Autowired
     CabinetRequestServiceImpl cabinetRequestService;
 
-    @Autowired
-    Learnmmm le;
     @Scheduled(cron = "0/2 * * * * ?")
     private void cabtest() {
         if (topSpace.isReady()) {
 
-            le.readDescription();
+
+//            Futures.addCallback(cabinetRequestService.asyncSend(RpcTarget.CommonToAllCabinet, new DetailInfoRequestWrapper(Util.NewCommonHeaderForClient(), true, null)), new FutureCallback<ResponseWrapper>() {
+//                @Override
+//                public void onSuccess(@Nullable ResponseWrapper result) {
+//                    log.info("111");
+//                }
+//
+//                @Override
+//                public void onFailure(Throwable t) {
+//                    log.info("222");
+//
+//                }
+//            }, MoreExecutors.directExecutor());
+//
+//            ;
+//
 
 //            cabinetRequestService.test();
 //            le.getCabinetTime();

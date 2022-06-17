@@ -13,7 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 @Slf4j
 public abstract class FwBaseUaComponent<T extends UaNode> extends FwComponent {
 
-    @Autowired
+    @Autowired(required = false)
     OpcuaService opcuaService;
 
     public OpcuaService getOpcuaServer() {
@@ -30,11 +30,18 @@ public abstract class FwBaseUaComponent<T extends UaNode> extends FwComponent {
     }
 
     protected void beforePropStart() {
-        var node = this.createUaNode();
-        this.getParentNode().addComponent(node);
-        this._thisNode = node;
+        createNodeInternal();
     }
 
+    protected void createNodeInternal(){
+        synchronized (this) {
+            if (this._thisNode == null) {
+                var node = this.createUaNode();
+                this.getParentNode().addComponent(node);
+                this._thisNode = node;
+            }
+        }
+    }
 
     public void onChanged(FwProperty property, FwContext context) {
         super.onChanged(property, context);
@@ -45,6 +52,9 @@ public abstract class FwBaseUaComponent<T extends UaNode> extends FwComponent {
     protected abstract T createUaNode();
 
     public T getNode() {
+        if(_thisNode == null){
+            createNodeInternal();
+        }
         return _thisNode;
     }
 
@@ -55,11 +65,13 @@ public abstract class FwBaseUaComponent<T extends UaNode> extends FwComponent {
             return ((FwBaseUaComponent<?>) p).getNode();
         }
 
-        while ((p = p.getParentComponent()) != null) {
+
+        while (p !=null&& (p = p.getParentComponent()) != null) {
             if (p instanceof FwBaseUaComponent) {
                 return ((FwBaseUaComponent<?>) p).getNode();
             }
         }
+
 
         return LcsNodeManager.objectsFolder;
     }

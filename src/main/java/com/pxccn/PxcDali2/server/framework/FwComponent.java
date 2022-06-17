@@ -102,6 +102,7 @@ public abstract class FwComponent extends FwObject implements IFwCompLifecycle {
             _running = true;
         }
         beforePropStart();
+
         this._props.values().forEach(FwProperty::start);
         this.started();
         log.debug("Component '" + this.getName() + "' started.");

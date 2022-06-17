@@ -1,16 +1,16 @@
 package com.pxccn.PxcDali2.server.events.ToComponent;
 
-import com.pxccn.PxcDali2.MqSharePack.model.LightRealtimeStatusModel;
+import com.pxccn.PxcDali2.MqSharePack.model.CommonRealtimeStatusModel;
 
 public class LightStatusMessageMqCompEvent extends ToLightsManagerCompEvent {
-    LightRealtimeStatusModel message;
+    CommonRealtimeStatusModel message;
 
-    public LightStatusMessageMqCompEvent(Object source, LightRealtimeStatusModel msg) {
+    public LightStatusMessageMqCompEvent(Object source, CommonRealtimeStatusModel msg) {
         super(source);
         this.message = msg;
     }
 
-    public LightRealtimeStatusModel getMessage() {
+    public CommonRealtimeStatusModel getMessage() {
         return this.message;
     }
 }

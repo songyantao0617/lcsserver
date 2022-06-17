@@ -2,15 +2,15 @@ package com.pxccn.PxcDali2.MqSharePack.model;
 
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
-public class DeviceRealtimeStatusModel implements IPbModel<LcsProtos.DeviceRealtimeStatus> {
+public class DeviceRealtimeStatusModel implements IPbModel<LcsProtos.Dali2DeviceRealtimeStatus> {
 
 
-    public DeviceRealtimeStatusModel(LcsProtos.DeviceRealtimeStatus pb) {
+    public DeviceRealtimeStatusModel(LcsProtos.Dali2DeviceRealtimeStatus pb) {
 
     }
 
-    public LcsProtos.DeviceRealtimeStatus getPb() {
-        return LcsProtos.DeviceRealtimeStatus.newBuilder()
+    public LcsProtos.Dali2DeviceRealtimeStatus getPb() {
+        return LcsProtos.Dali2DeviceRealtimeStatus.newBuilder()
                 .build();
     }
 }

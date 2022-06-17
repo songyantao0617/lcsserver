@@ -2,8 +2,7 @@ package com.pxccn.PxcDali2.MqSharePack.wrapper.toServer;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.NiagaraOperateRespWrapper;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PingRespWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.*;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 public class ResponseWrapper<T extends com.google.protobuf.GeneratedMessageV3> extends ProtoToServerQueueMsg<LcsProtos.Response> {
@@ -15,6 +14,12 @@ public class ResponseWrapper<T extends com.google.protobuf.GeneratedMessageV3> e
                 return new PingRespWrapper(pb);
             case NiagaraOperateRespWrapper.TypeUrl:
                 return new NiagaraOperateRespWrapper(pb);
+            case DetailInfoRespWrapper.TypeUrl:
+                return new DetailInfoRespWrapper(pb);
+            case PollManagerSettingRespWrapper.TypeUrl:
+                return new PollManagerSettingRespWrapper(pb);
+            case CabinetSimpleActionRespWrapper.TypeUrl:
+                return new CabinetSimpleActionRespWrapper(pb);
         }
         return new ResponseWrapper(pb);//异常情况
     }

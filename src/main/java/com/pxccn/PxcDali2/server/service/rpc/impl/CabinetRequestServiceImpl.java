@@ -12,7 +12,7 @@ import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.NiagaraOperateRe
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PingRespWrapper;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.common.LcsExecutors;
-import com.pxccn.PxcDali2.common.Util;
+import com.pxccn.PxcDali2.Util;
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.BadMessageException;
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.OperationFailure;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;

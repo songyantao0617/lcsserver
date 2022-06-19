@@ -4,8 +4,10 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.prosysopc.ua.nodes.UaNode;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.ActionWithFeedbackRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.DetailInfoRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.Util;
 import com.pxccn.PxcDali2.server.events.CabinetSimpleEvent;
 import com.pxccn.PxcDali2.server.events.LightsDetailUploadEvent;
@@ -59,7 +61,7 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
     @EventListener
     public void onDaliLightsRealtimeStatusModelEvent(DaliLightsRealtimeStatusModelEvent event) {
         event.getModelList().forEach(m -> {
-            var light = (Dali2Light)this.GetOrCreateLight(m.id, event.getCabinetId(), LightType.DALI2);
+            var light = (Dali2Light) this.GetOrCreateLight(m.id, event.getCabinetId(), LightType.DALI2);
             light.onNewStatus(m);
         });
     }
@@ -67,19 +69,20 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
     @EventListener
     public void onDoLightsRealtimeStatusModelEvent(DoLightsRealtimeStatusModelEvent event) {
         event.getModelList().forEach(m -> {
-            var light = (DoLight)this.GetOrCreateLight(m.id, event.getCabinetId(), LightType.DO);
+            var light = (DoLight) this.GetOrCreateLight(m.id, event.getCabinetId(), LightType.DO);
             light.onNewStatus(m);
         });
     }
 
     @EventListener
     public void onLightDetailUploadEvent(LightsDetailUploadEvent event) {
+        int cabinetId = event.getMessage().getCabinetId();
         event.getMessage().getDali2LightDetailModels().forEach(model -> {
-            var light = (Dali2Light)this.GetOrCreateLight(model.uuid, event.getCabinetId(), LightType.DALI2);
+            var light = (Dali2Light) this.GetOrCreateLight(model.uuid, cabinetId, LightType.DALI2);
             light.onDetailUpload(model);
         });
-        event.getMessage().getDoLightDetailModels().forEach(model->{
-            var light = (DoLight)this.GetOrCreateLight(model.uuid, event.getCabinetId(), LightType.DO);
+        event.getMessage().getDoLightDetailModels().forEach(model -> {
+            var light = (DoLight) this.GetOrCreateLight(model.uuid, cabinetId, LightType.DO);
             light.onDetailUpload(model);
         });
     }
@@ -95,6 +98,31 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
             @Override
             public void onFailure(Throwable t) {
                 log.error("无法从控制柜<{}>获取灯具详细信息:{}", cabinetId, t.getMessage());
+            }
+        }, MoreExecutors.directExecutor());
+    }
+
+    public void AskToBlinkLight(List<UUID> lightsUuid, boolean enable, int cabinetId) {
+        Futures.addCallback(cabinetRequestService.asyncSendWithAsyncFeedback(RpcTarget.ToCabinet(cabinetId),
+                ActionWithFeedbackRequestWrapper.Blink(Util.NewCommonHeaderForClient(), lightsUuid.toArray(new UUID[0]), enable), (ResponseWrapper) -> {
+                    log.info("向控制柜<{}>指定灯具发送闪烁指令成功", cabinetId);
+                }, 5000), new FutureCallback<AsyncActionFeedbackWrapper>() {
+            @Override
+            public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
+                if (result == null || result.getFeedback() == null) {
+                    log.error("内部错误");
+                    return;
+                }
+                if (((AsyncActionFeedbackWrapper.Blink) result.getFeedback()).isSuccess()) {
+                    log.info("闪烁成功");
+                }else{
+                    log.error("闪烁失败:{}",(((AsyncActionFeedbackWrapper.Blink) result.getFeedback()).getErrorMsg()));
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.error("闪烁失败！:{}", t.getMessage());
             }
         }, MoreExecutors.directExecutor());
     }
@@ -140,8 +168,8 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
         return this.GetOrCreateLight(lightUuid, null, null);
     }
 
-    public enum LightType{
-        DALI2,DO
+    public enum LightType {
+        DALI2, DO
     }
 
     public LightBase GetOrCreateLight(UUID lightUuid, Integer cabinetId, LightType type) {

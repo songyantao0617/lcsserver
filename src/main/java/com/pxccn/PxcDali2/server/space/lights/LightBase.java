@@ -10,10 +10,12 @@ import com.pxccn.PxcDali2.MqSharePack.model.LightDetailModelBase;
 import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
 import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
+import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.annotation.PostConstruct;
 import java.util.Collections;
@@ -23,6 +25,9 @@ import java.util.UUID;
 @Slf4j
 public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNode> {
 
+    @Autowired
+    UaAlarmEventService uaAlarmEventService;
+
     FwProperty<String> lightName;
     FwProperty<String> description;
     FwProperty<Integer> axis_x;
@@ -30,6 +35,7 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
     FwProperty<Integer> axis_y;
     FwProperty<Integer> axis_z;
 
+    FwProperty<Integer> shortAddress;
     FwProperty<Long> lastInfosUploadedTimestamp;
     FwProperty<Long> lastRealtimeStatusUploadedTimestamp;
     FwProperty<Integer> cabinetId;
@@ -57,6 +63,7 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
         this.terminalIndex.set(model.terminalIndex);
         this.lastInfosUploadedTimestamp.set(System.currentTimeMillis());
         this.isBlinking.set(model.isBlinking);
+        this.shortAddress.set(model.shortAddress);
     }
 
 
@@ -74,8 +81,10 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
         lastInfosUploadedTimestamp = addProperty(0L, "lastInfosUploadedTimestamp");
         lastRealtimeStatusUploadedTimestamp = addProperty(0L, "lastRealtimeStatusUploadedTimestamp");
         cabinetId = addProperty(-1, "cabinetId");
-        terminalIndex = addProperty(-1,"terminalIndex");
-        isBlinking = addProperty(false,"isBlinking");
+        terminalIndex = addProperty(-1, "terminalIndex");
+        isBlinking = addProperty(false, "isBlinking");
+        shortAddress = addProperty(-1,"shortAddress");
+
     }
 
     public LightsManager getLightsManager() {
@@ -88,8 +97,13 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
     }
 
     public void onFetchDetailsNow() {
-        log.info("灯具<{}>数据上传执行", this.lightUuid);
+        log.info("灯具<{}>数据上传执行", this.lightName.get());
         this.getLightsManager().AskToUpdateLightsInfo(Collections.singletonList(this.lightUuid), this.cabinetId.get());
+    }
+
+    public void onBlink(boolean enable) {
+        log.info("灯具<{}>闪烁执行", this.lightName.get());
+        this.getLightsManager().AskToBlinkLight(Collections.singletonList(this.lightUuid), enable, this.cabinetId.get());
     }
 
     @Override
@@ -121,6 +135,7 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
             addProperty(comp.cabinetId);
             addProperty(comp.terminalIndex);
             addProperty(comp.isBlinking);
+            addProperty(comp.shortAddress);
             addAdditionalDeclares(methods.values());
         }
 
@@ -160,7 +175,7 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
 
         protected Variant[] onMethodCall(UaHelperUtil.UaMethodDeclare declared, Variant[] input) throws StatusException {
             if (declared == methods.blink) {
-//                comp.blink(BBoolean.make(input[0].booleanValue()));
+                comp.onBlink(input[0].booleanValue());
                 return null;
             } else if (declared == methods.fetchDetailsNow) {
                 this.comp.onFetchDetailsNow();

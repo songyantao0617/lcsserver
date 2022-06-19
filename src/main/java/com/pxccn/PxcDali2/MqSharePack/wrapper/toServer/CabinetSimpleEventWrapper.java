@@ -51,7 +51,7 @@ public class CabinetSimpleEventWrapper extends ProtoToServerQueueMsg<LcsProtos.C
     private Event event;
 
     public enum Event {
-        UNKNOW,
+        Unknown,
         RoomAdded,
         RoomRemoved,
         RoomInfoChange,
@@ -65,32 +65,13 @@ public class CabinetSimpleEventWrapper extends ProtoToServerQueueMsg<LcsProtos.C
         super(pb);
         LcsProtos.CabinetSimpleEvent v = pb.getPayload().unpack(LcsProtos.CabinetSimpleEvent.class);
         this.uuid = Util.ToUuid(v.getUuid());
-        switch (v.getEventValue()) {
-            case LcsProtos.CabinetSimpleEvent.E.RoomAdded_VALUE:
-                this.event = Event.RoomAdded;
-                break;
-            case LcsProtos.CabinetSimpleEvent.E.RoomRemoved_VALUE:
-                this.event = Event.RoomRemoved;
-                break;
-            case LcsProtos.CabinetSimpleEvent.E.RoomInfoChange_VALUE:
-                this.event = Event.RoomInfoChange;
-                break;
-            case LcsProtos.CabinetSimpleEvent.E.LightAdded_VALUE:
-                this.event = Event.LightAdded;
-                break;
-            case LcsProtos.CabinetSimpleEvent.E.LightRemoved_VALUE:
-                this.event = Event.LightRemoved;
-                break;
-            case LcsProtos.CabinetSimpleEvent.E.LightInfoChange_VALUE:
-                this.event = Event.LightInfoChange;
-                break;
-            case LcsProtos.CabinetSimpleEvent.E.CabinetInfoChange_VALUE:
-                this.event = Event.CabinetInfoChange;
-                break;
-            default:
-                this.event = Event.UNKNOW;
-                break;
+        Event event;
+        try {
+            event = Event.valueOf(v.getEvent());
+        } catch (IllegalArgumentException ignore) {
+            event = Event.Unknown;
         }
+        this.event = event;
     }
 
     public CabinetSimpleEventWrapper(ToServerMsgParam param, UUID uuid, Event event) {
@@ -102,31 +83,9 @@ public class CabinetSimpleEventWrapper extends ProtoToServerQueueMsg<LcsProtos.C
 
     @Override
     protected LcsProtos.CabinetSimpleEvent.Builder internal_get_payload() {
-        LcsProtos.CabinetSimpleEvent.Builder b = LcsProtos.CabinetSimpleEvent.newBuilder()
-                .setUuid(Util.ToPbUuid(this.uuid));
-        switch (this.event) {
-            case RoomAdded:
-                b.setEvent(LcsProtos.CabinetSimpleEvent.E.RoomAdded);
-                break;
-            case RoomRemoved:
-                b.setEvent(LcsProtos.CabinetSimpleEvent.E.RoomRemoved);
-                break;
-            case LightAdded:
-                b.setEvent(LcsProtos.CabinetSimpleEvent.E.LightAdded);
-                break;
-            case LightRemoved:
-                b.setEvent(LcsProtos.CabinetSimpleEvent.E.LightRemoved);
-                break;
-            case LightInfoChange:
-                b.setEvent(LcsProtos.CabinetSimpleEvent.E.LightInfoChange);
-                break;
-            case RoomInfoChange:
-                b.setEvent(LcsProtos.CabinetSimpleEvent.E.RoomInfoChange);
-                break;
-            case CabinetInfoChange:
-                b.setEvent(LcsProtos.CabinetSimpleEvent.E.CabinetInfoChange);
-                break;
-        }
-        return b;
+        return LcsProtos.CabinetSimpleEvent.newBuilder()
+                .setUuid(Util.ToPbUuid(this.uuid))
+                .setEvent(this.event.name())
+                ;
     }
 }

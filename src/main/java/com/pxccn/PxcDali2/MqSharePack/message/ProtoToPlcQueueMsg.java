@@ -59,8 +59,10 @@ public abstract class ProtoToPlcQueueMsg<T extends com.google.protobuf.Generated
                 return new DetailInfoRequestWrapper(msg);
             case PollManagerSettingRequestWrapper.TypeUrl:
                 return new PollManagerSettingRequestWrapper(msg);
-            case CabinetSimpleActionRequestWrapper.TypeUrl:
-                return new CabinetSimpleActionRequestWrapper(msg);
+//            case CabinetSimpleActionRequestWrapper.TypeUrl:
+//                return new CabinetSimpleActionRequestWrapper(msg);
+            case ActionWithFeedbackRequestWrapper.TypeUrl:
+                return new ActionWithFeedbackRequestWrapper(msg);
             default:
                 return null;
         }

@@ -4,6 +4,7 @@ package com.pxccn.PxcDali2.MqSharePack.message;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.*;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.GeneratedMessageV3> implements QueueMsg {
@@ -114,6 +115,8 @@ public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.Genera
                 return new CabinetSimpleEventWrapper(msg);
             case CabinetDetailUploadWrapper.TypeUrl:
                 return new CabinetDetailUploadWrapper(msg);
+            case AsyncActionFeedbackWrapper.TypeUrl:
+                return new AsyncActionFeedbackWrapper(msg);
             default:
                 return null;
         }

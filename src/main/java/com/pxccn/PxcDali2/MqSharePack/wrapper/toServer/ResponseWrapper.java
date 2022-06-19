@@ -18,8 +18,10 @@ public class ResponseWrapper<T extends com.google.protobuf.GeneratedMessageV3> e
                 return new DetailInfoRespWrapper(pb);
             case PollManagerSettingRespWrapper.TypeUrl:
                 return new PollManagerSettingRespWrapper(pb);
-            case CabinetSimpleActionRespWrapper.TypeUrl:
-                return new CabinetSimpleActionRespWrapper(pb);
+//            case CabinetSimpleActionRespWrapper.TypeUrl:
+//                return new CabinetSimpleActionRespWrapper(pb);
+            case ActionWithFeedbackRespWrapper.TypeUrl:
+                return new ActionWithFeedbackRespWrapper(pb);
         }
         return new ResponseWrapper(pb);//异常情况
     }

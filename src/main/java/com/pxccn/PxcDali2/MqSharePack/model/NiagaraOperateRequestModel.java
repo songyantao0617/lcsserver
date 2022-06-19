@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 
 public class NiagaraOperateRequestModel implements IPbModel<LcsProtos.perOperateRequest> {
 
-    public LcsProtos.perOperateRequest.Operate getOperateCode() {
+    public Operate getOperateCode() {
         return operateCode;
     }
 
@@ -23,23 +23,36 @@ public class NiagaraOperateRequestModel implements IPbModel<LcsProtos.perOperate
         return targetValue;
     }
 
-    LcsProtos.perOperateRequest.Operate operateCode;
+    Operate operateCode;
     Locate locate;
     String targetValue;
     MethodParameter methodParameter;
+
+    public enum Operate {
+        Unknown,
+        READ_PROPERTY,
+        WRITE_PROPERTY,
+        INVOKE_METHOD
+    }
 
     public MethodParameter getMethodParameter() {
         return methodParameter;
     }
 
     public NiagaraOperateRequestModel(LcsProtos.perOperateRequest pb) {
-        this.operateCode = pb.getOperate();
+        Operate operate;
+        try {
+            operate = Operate.valueOf(pb.getOperate());
+        } catch (IllegalArgumentException ignore) {
+            operate = Operate.Unknown;
+        }
+        this.operateCode = operate;
         this.locate = new Locate(pb);
         this.targetValue = pb.hasNewValueToSet() ? pb.getNewValueToSet() : pb.getMethodName();
-        if (this.operateCode == LcsProtos.perOperateRequest.Operate.INVOKE_METHOD && !pb.hasMethodName()) {
+        if (this.operateCode == Operate.INVOKE_METHOD && !pb.hasMethodName()) {
             throw new IllegalStateException("参数不合理");
         }
-        if (this.operateCode == LcsProtos.perOperateRequest.Operate.INVOKE_METHOD) {
+        if (this.operateCode == Operate.INVOKE_METHOD) {
             this.methodParameter = new MethodParameter(pb);
         }
     }
@@ -49,7 +62,7 @@ public class NiagaraOperateRequestModel implements IPbModel<LcsProtos.perOperate
 
     public static NiagaraOperateRequestModel READ_PROPERTY(String propertyOrd) {
         NiagaraOperateRequestModel model = new NiagaraOperateRequestModel();
-        model.operateCode = LcsProtos.perOperateRequest.Operate.READ_PROPERTY;
+        model.operateCode = Operate.READ_PROPERTY;
         model.locate = new Locate(propertyOrd);
         model.targetValue = "";
         return model;
@@ -57,7 +70,7 @@ public class NiagaraOperateRequestModel implements IPbModel<LcsProtos.perOperate
 
     public static NiagaraOperateRequestModel READ_PROPERTY(UUID lightOrRoomUuid, String slotPath) {
         NiagaraOperateRequestModel model = new NiagaraOperateRequestModel();
-        model.operateCode = LcsProtos.perOperateRequest.Operate.READ_PROPERTY;
+        model.operateCode = Operate.READ_PROPERTY;
         model.locate = new Locate(lightOrRoomUuid, slotPath);
         model.targetValue = "";
         return model;
@@ -65,7 +78,7 @@ public class NiagaraOperateRequestModel implements IPbModel<LcsProtos.perOperate
 
     public static NiagaraOperateRequestModel WRITE_PROPERTY(String propertyOrd, String newValue) {
         NiagaraOperateRequestModel model = new NiagaraOperateRequestModel();
-        model.operateCode = LcsProtos.perOperateRequest.Operate.WRITE_PROPERTY;
+        model.operateCode = Operate.WRITE_PROPERTY;
         model.locate = new Locate(propertyOrd);
         model.targetValue = newValue;
         return model;
@@ -73,7 +86,7 @@ public class NiagaraOperateRequestModel implements IPbModel<LcsProtos.perOperate
 
     public static NiagaraOperateRequestModel WRITE_PROPERTY(UUID lightOrRoomUuid, String slotPath, String newValue) {
         NiagaraOperateRequestModel model = new NiagaraOperateRequestModel();
-        model.operateCode = LcsProtos.perOperateRequest.Operate.WRITE_PROPERTY;
+        model.operateCode = Operate.WRITE_PROPERTY;
         model.locate = new Locate(lightOrRoomUuid, slotPath);
         model.targetValue = newValue;
         return model;
@@ -81,7 +94,7 @@ public class NiagaraOperateRequestModel implements IPbModel<LcsProtos.perOperate
 
     public static NiagaraOperateRequestModel INVOKE_METHOD(String componentOrd, String methodName) {
         NiagaraOperateRequestModel model = new NiagaraOperateRequestModel();
-        model.operateCode = LcsProtos.perOperateRequest.Operate.INVOKE_METHOD;
+        model.operateCode = Operate.INVOKE_METHOD;
         model.locate = new Locate(componentOrd);
         model.targetValue = methodName;
         model.methodParameter = new MethodParameter();
@@ -90,19 +103,18 @@ public class NiagaraOperateRequestModel implements IPbModel<LcsProtos.perOperate
 
     public static NiagaraOperateRequestModel INVOKE_METHOD(UUID lightOrRoomUuid, String slotPath, String methodName) {
         NiagaraOperateRequestModel model = new NiagaraOperateRequestModel();
-        model.operateCode = LcsProtos.perOperateRequest.Operate.INVOKE_METHOD;
+        model.operateCode = Operate.INVOKE_METHOD;
         model.locate = new Locate(lightOrRoomUuid, slotPath);
         model.targetValue = methodName;
         model.methodParameter = new MethodParameter();
         return model;
     }
 
-
     public LcsProtos.perOperateRequest getPb() {
         LcsProtos.perOperateRequest.Builder builder = LcsProtos.perOperateRequest.newBuilder();
-        builder.setOperate(this.operateCode);
+        builder.setOperate(this.operateCode.name());
         this.locate.fillPb(builder);
-        if (this.operateCode == LcsProtos.perOperateRequest.Operate.INVOKE_METHOD) {
+        if (this.operateCode == Operate.INVOKE_METHOD) {
             builder.setMethodName(this.targetValue);
             this.methodParameter.fillPb(builder);
         } else {

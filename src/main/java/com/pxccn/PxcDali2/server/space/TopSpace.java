@@ -6,6 +6,7 @@ import com.pxccn.PxcDali2.server.framework.FwComponent;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
 import com.pxccn.PxcDali2.server.service.opcua.LcsNodeManager;
 import com.pxccn.PxcDali2.server.space.cabinets.CabinetsManager;
+import com.pxccn.PxcDali2.server.space.cockpit.Cockpit;
 import com.pxccn.PxcDali2.server.space.lights.LightsManager;
 import com.pxccn.PxcDali2.server.space.rooms.RoomsManager;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +22,8 @@ public class TopSpace extends FwComponent {
     FwProperty<LightsManager> LightsManager;
     FwProperty<CabinetsManager> CabinetsManager;
     FwProperty<RoomsManager> RoomsManager;
+
+    FwProperty<Cockpit> Cockpit;
 
     @Autowired
     ApplicationContext context;
@@ -40,6 +43,7 @@ public class TopSpace extends FwComponent {
         LightsManager = addProperty(context.getBean(LightsManager.class), "LightsManager");
         CabinetsManager = addProperty(context.getBean(CabinetsManager.class), "CabinetsManager");
         RoomsManager = addProperty(context.getBean(RoomsManager.class), "RoomsManager");
+        Cockpit = addProperty(context.getBean(Cockpit.class), "Cockpit");
     }
 
     public void onServerReady(LcsNodeManager nodeManager) {
@@ -55,5 +59,9 @@ public class TopSpace extends FwComponent {
 
     public CabinetsManager getCabinetsManager() {
         return this.CabinetsManager.get();
+    }
+
+    public Cockpit getCockpit(){
+        return this.Cockpit.get();
     }
 }

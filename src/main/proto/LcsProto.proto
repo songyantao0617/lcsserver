@@ -18,6 +18,11 @@ enum LightTypeEnum{
   DO = 1;
 }
 
+message Dali2LightCommand{
+  string instruction = 1; //指令枚举名称
+  int32 parameter = 2;
+}
+
 message CommonRealtimeStatus{
   Uuid id = 1;
   int32 terminalIndex = 2;
@@ -101,20 +106,11 @@ message CabinetDetailUpload{
 }
 //控制器简单事件
 message CabinetSimpleEvent{
-  enum E{
-    RoomAdded = 0;
-    RoomRemoved = 1;
-    RoomInfoChange = 2;
-    LightAdded = 3;
-    LightRemoved = 4;
-    LightInfoChange = 5;
-    CabinetInfoChange = 6;
-  }
   Uuid uuid = 1;
-  E event = 3;
+  string event = 2; //枚举
 }
 //简单操作请求
-message CabinetSimpleActionRequest{
+message ActionRequest{
   enum A{
     SYNC_DB_BASIC = 0;
     SYNC_DB_ROOM = 1;
@@ -123,9 +119,64 @@ message CabinetSimpleActionRequest{
   A action = 2;
 }
 //简单操作回应
-message CabinetSimpleActionResp{
+message ActionResp{
 
 }
+
+//带Feedback动作请求
+message ActionWithFeedbackRequest{
+  Uuid requestId = 1;
+  oneof action {
+    Blink blink = 3;
+    SetShortAddress setShortAddress = 4;
+    SendLevelInstruction sendLevelInstruction = 5;
+  }
+  //闪烁命令
+  message Blink{
+    bool enable = 1;
+    repeated Uuid targetUuids = 2;
+  }
+  //设置新短地址
+  message SetShortAddress{
+    int32 newShortAddress = 1;
+    repeated Uuid targetUuids = 2;
+  }
+  message SendLevelInstruction{
+    Dali2LightCommand command = 1;
+    repeated Uuid targetUuids = 2;
+  }
+}
+
+//动作同步回应 confirm
+message ActionWithFeedbackResp{
+  bool allDispatched = 1;//没用
+}
+
+//动作异步回应
+message AsyncActionFeedback{
+  Uuid requestId = 1;
+  oneof payload {
+    Blink blink = 2;
+    SetShortAddress setShortAddress = 3;
+  }
+  message Blink{
+    bool success = 1;
+    string failureReason = 2;
+  }
+  message SetShortAddress{
+    bool success = 1;
+    string failureReason = 2;
+  }
+  message SendLevelInstruction{
+    bool success = 1;
+    string failureReason = 2;
+  }
+}
+
+
+
+
+
 
 message Event{
   enum EventType{
@@ -138,12 +189,7 @@ message Event{
 
 //Niagara 平台级操作请求
 message perOperateRequest{
-  enum Operate{
-    READ_PROPERTY = 0;
-    WRITE_PROPERTY = 1;
-    INVOKE_METHOD = 2;
-  }
-  Operate operate = 1;
+  string operate = 1;//枚举
   oneof howToLocate{
     string targetSlotOrd = 2;
     string lightOrRoomUuid = 3;//UUID 拼接方式

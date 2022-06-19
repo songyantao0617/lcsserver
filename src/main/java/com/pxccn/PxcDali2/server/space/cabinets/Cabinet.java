@@ -19,6 +19,7 @@ import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
 import com.pxccn.PxcDali2.server.events.CabinetAliveChangedEvent;
 import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
+import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
@@ -27,6 +28,7 @@ import com.pxccn.PxcDali2.server.space.lights.LightsManager;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.helpers.MessageFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ConfigurableApplicationContext;
 
@@ -37,7 +39,8 @@ import java.util.UUID;
 @FwComponentAnnotation
 @Slf4j
 public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
-
+    @Autowired
+    UaAlarmEventService uaAlarmEventService;
     @Autowired
     CabinetRequestService cabinetRequestService;
     @Autowired
@@ -56,10 +59,10 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
     FwProperty<Integer> CabinetId;
     FwProperty<Props> Props;
     FwProperty<Boolean> IsAlive;
-    FwProperty<Long> LastConnectionLostTimeStamp;
-    FwProperty<Long> LastConnectionEstablishTimeStamp;
-    FwProperty<Long> LastInfosUploadedTimestamp;
-    FwProperty<DateTime> LastInfosUploadedTimestamp2;
+    FwProperty<DateTime> LastConnectionLostTimeStamp;
+    FwProperty<DateTime> LastConnectionEstablishTimeStamp;
+    FwProperty<DateTime> LastInfosUploadedTimestamp;
+//    FwProperty<DateTime> LastInfosUploadedTimestamp2;
 
     @PostConstruct
     public void post() {
@@ -67,16 +70,15 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         Description = addProperty("name..", "description");
         CabinetId = addProperty(0, "cabinetId");
         Props = addProperty(context.getBean(Props.class), "realtimeStatus");
-        IsAlive = addProperty(false, "isAlive");
-        LastConnectionLostTimeStamp = addProperty(0L, "lastConnectionLostTimeStamp");
-        LastConnectionEstablishTimeStamp = addProperty(0L, "lastConnectionEstablishTimeStamp");
-        LastInfosUploadedTimestamp = addProperty(0L, "lastInfosUploadedTimestamp");
+        IsAlive = addProperty(true, "isAlive");
+        LastConnectionLostTimeStamp = addProperty(DateTime.MIN_VALUE, "lastConnectionLostTimeStamp");
+        LastConnectionEstablishTimeStamp = addProperty(DateTime.MIN_VALUE, "lastConnectionEstablishTimeStamp");
+        LastInfosUploadedTimestamp = addProperty(DateTime.MIN_VALUE, "lastInfosUploadedTimestamp");
         Axis_x = addProperty(0, "axis_x");
         Axis_y = addProperty(0, "axis_y");
         Axis_z = addProperty(0, "axis_z");
         Version = addProperty("", "version");
         IsMaintenance = addProperty(true, "isMaintenance");
-        LastInfosUploadedTimestamp2 = addProperty(DateTime.MIN_VALUE, "dt");
     }
 
     private long _lastMsgTimestamp = System.currentTimeMillis();
@@ -88,8 +90,7 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
     }
 
     public void onDetailUpload(CabinetDetailUploadWrapper detail) {
-        this.LastInfosUploadedTimestamp.set(System.currentTimeMillis());
-        this.LastInfosUploadedTimestamp2.set(DateTime.currentTime());
+        this.LastInfosUploadedTimestamp.set(DateTime.currentTime());
         this.Name.set(detail.cabinetName);
         this.Description.set(detail.description);
         this.Axis_x.set(detail.axis_x);
@@ -99,9 +100,15 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         this.IsMaintenance.set(detail.isMaintenance);
     }
 
+
     public void started() {
         super.started();
         log.info("注册控制柜<{}>...", this.CabinetId.get());
+        this.cabinetDataInit();
+    }
+
+    public void cabinetDataInit() {
+        log.info("同步控制柜<{}>数据", this.CabinetId.get());
         this.AskToUpdateLightsAndRoomInfo();//要求控制器上传灯具和房间的具体信息
         this.purgeCacheForUpdateAllRealtimeStatus();//要求控制器更新所有灯具亮度
     }
@@ -110,15 +117,19 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
     public void onChanged(FwProperty property, FwContext context) {
         super.onChanged(property, context);
         if (property == IsAlive) {
-            var tp = System.currentTimeMillis();
             if (IsAlive.get()) {
-                log.info("控制柜<{}>上线！", this.CabinetId.get());
-                this.LastConnectionEstablishTimeStamp.set(tp);
+                String msg = MessageFormatter.arrayFormat("控制柜<{}>上线！", new Object[]{this.Name.get()}).getMessage();
+                log.info(msg);
+                uaAlarmEventService.sendBasicEvent(this, msg, 1);
+                this.LastConnectionEstablishTimeStamp.set(DateTime.currentTime());
+                cabinetDataInit();
             } else {
-                log.error("控制柜<{}>离线！", this.CabinetId.get());
-                this.LastConnectionLostTimeStamp.set(tp);
+                String msg = MessageFormatter.arrayFormat("控制柜<{}>离线！", new Object[]{this.Name.get()}).getMessage();
+                log.error(msg);
+                uaAlarmEventService.sendBasicEvent(this, msg, 1);
+                this.LastConnectionLostTimeStamp.set(DateTime.currentTime());
             }
-            this.context.publishEvent(new CabinetAliveChangedEvent(this, this.IsAlive.get(), tp));
+            this.context.publishEvent(new CabinetAliveChangedEvent(this, this.IsAlive.get(), System.currentTimeMillis()));
         } else if (property == this.Name) {
             this.getNode().setDisplayName(new LocalizedText(this.Name.get()));
         }
@@ -127,7 +138,7 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
     /**
      * 清除控制器实时状态缓存
      */
-    public void purgeCacheForUpdateAllRealtimeStatus(){
+    public void purgeCacheForUpdateAllRealtimeStatus() {
         var request = new PollManagerSettingRequestWrapper.PollManagerParam();
         request.purgeCache = true;
         this.setPollManager(request);
@@ -222,7 +233,6 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
             addProperty(uaComponent.Axis_z);
             addProperty(uaComponent.Version);
             addProperty(uaComponent.IsMaintenance);
-            addProperty(uaComponent.LastInfosUploadedTimestamp2);
             addAdditionalDeclares(methods.values());
         }
 

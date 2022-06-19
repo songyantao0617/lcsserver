@@ -3,11 +3,14 @@ package com.pxccn.PxcDali2.server.service.rpc;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToPlcQueueMsg;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.ActionWithFeedbackRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.BadMessageException;
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.OperationFailure;
 
 import java.util.UUID;
+import java.util.function.Consumer;
 
 public interface CabinetRequestService {
 
@@ -82,4 +85,10 @@ public interface CabinetRequestService {
      * @return
      */
     ListenableFuture<Void> writePropertyValueAsync(RpcTarget target, UUID resourceUuid, String slotOrd, String newValue);
+
+
+    ListenableFuture<AsyncActionFeedbackWrapper> asyncSendWithAsyncFeedback(RpcTarget target,
+                                                                            ActionWithFeedbackRequestWrapper request,
+                                                                            Consumer<ResponseWrapper> sendSuccess, int timeout
+    );
 }

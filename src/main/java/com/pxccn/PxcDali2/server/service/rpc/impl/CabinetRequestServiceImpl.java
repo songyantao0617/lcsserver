@@ -5,9 +5,11 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToPlcQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.model.NiagaraOperateRequestModel;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.ActionWithFeedbackRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.NiagaraOperateRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.PingRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.NiagaraOperateRespWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PingRespWrapper;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
@@ -22,20 +24,33 @@ import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.amqp.rabbit.AsyncRabbitTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.SmartLifecycle;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
+import org.springframework.util.StringUtils;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 
 import javax.annotation.PostConstruct;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
+
+import static com.pxccn.PxcDali2.server.mq.config.MqConfigure.switch_broadcastToPlc;
 
 @Service
 @Slf4j
-public class CabinetRequestServiceImpl implements CabinetRequestService {
+public class CabinetRequestServiceImpl implements CabinetRequestService, InitializingBean {
     @Autowired
     RabbitTemplate rabbitTemplate;
 
@@ -237,6 +252,73 @@ public class CabinetRequestServiceImpl implements CabinetRequestService {
         if (!expectType.isInstance(testInstance)) {
             throw new BadMessageException("内部错误！ 预期得到类型‘" + expectType.getSimpleName() + "',但接收到类型’" + testInstance.getClass().getSimpleName() + "'");
         }
+    }
+
+    public ListenableFuture<AsyncActionFeedbackWrapper> asyncSendWithAsyncFeedback(RpcTarget target,
+                                                                                   ActionWithFeedbackRequestWrapper request,
+                                                                                   Consumer<ResponseWrapper> sendSuccess, int timeout
+    ) {
+        SettableFuture<AsyncActionFeedbackWrapper> feedbackFuture = SettableFuture.create();
+        var t = new Task();
+        t.consumer = feedbackFuture;
+        t.timeout = timeout;
+        log.error("OOO->{}",request.getRequestId());
+        this.pending.put(request.getRequestId(), t);
+        var scheduleFuture = this.taskScheduler.schedule(() -> {
+            var f = this.pending.remove(request.getRequestId());
+            if(f!=null){
+                feedbackFuture.setException(new TimeoutException("异步反馈超时！"));
+            }
+        }, new Date(System.currentTimeMillis() + timeout));
+        Futures.addCallback(this.asyncSend(target, request), new FutureCallback<>() {
+            @Override
+            public void onSuccess(@Nullable ResponseWrapper result) {
+                log.debug("<{}>收到请求，正在处理", target);
+                if (sendSuccess != null) {
+                    sendSuccess.accept(result);
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.error("<{}>无法投递请求！:{}", target, t.getMessage());
+                scheduleFuture.cancel(true);
+                pending.remove(request.getRequestId());
+                feedbackFuture.setException(t);
+            }
+        }, executor);
+        return feedbackFuture;
+    }
+
+
+    //////////////////////////
+    private ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
+    private final ConcurrentMap<UUID, Task> pending = new ConcurrentHashMap<>();
+
+
+    public void onReceiveFeedback(AsyncActionFeedbackWrapper feedbackWrapper) {
+        try {
+            UUID requestId = feedbackWrapper.getRequestId();
+            log.error("III->{}",requestId);
+            var t = this.pending.get(requestId);
+            if (t != null) {
+                t.consumer.set(feedbackWrapper);
+            } else {
+                log.warn("反馈信息迟到:{}", feedbackWrapper);
+            }
+        } catch (Throwable e) {
+            log.error("严重错误，无法处理!", e);
+        }
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        taskScheduler.afterPropertiesSet();
+    }
+
+    static class Task {
+        public SettableFuture<AsyncActionFeedbackWrapper> consumer;
+        public int timeout;
     }
 
 

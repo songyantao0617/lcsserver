@@ -34,6 +34,8 @@ public class UaHelperUtil {
      * @return LocalizedText
      */
     public static LocalizedText getLocalizedText(String key, String defaultText) {
+        if(defaultText == null)
+            return LocalizedText.EMPTY;
         return new LocalizedText(defaultText);
 //        String str = Util.GetLightControlSystem().getLex().get(key);
 //        if (str != null) {

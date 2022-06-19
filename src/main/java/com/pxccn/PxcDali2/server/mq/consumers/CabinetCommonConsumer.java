@@ -3,8 +3,10 @@ package com.pxccn.PxcDali2.server.mq.consumers;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.*;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.common.VersionHelper;
 import com.pxccn.PxcDali2.server.events.*;
+import com.pxccn.PxcDali2.server.service.rpc.impl.CabinetRequestServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.core.Binding;
@@ -27,6 +29,8 @@ public class CabinetCommonConsumer extends ComsumerBase {
     @Autowired
     ApplicationContext context;
 
+    @Autowired
+    CabinetRequestServiceImpl cabinetRequestService;
 
     @Override
     protected void prepare(AmqpAdmin amqpAdmin) {
@@ -55,6 +59,8 @@ public class CabinetCommonConsumer extends ComsumerBase {
                 context.publishEvent(new CabinetDetailUploadEvent(this, (CabinetDetailUploadWrapper) decodedMsg));
             } else if (decodedMsg instanceof CabinetSimpleEventWrapper) {
                 context.publishEvent(new CabinetSimpleEvent(this, (CabinetSimpleEventWrapper) decodedMsg));
+            } else if (decodedMsg instanceof AsyncActionFeedbackWrapper) {
+                cabinetRequestService.onReceiveFeedback((AsyncActionFeedbackWrapper) decodedMsg);
             }
 //            }
         } catch (InvalidProtocolBufferException e) {

@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.DetailInfoRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
 import com.pxccn.PxcDali2.Util;
+import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
 import com.pxccn.PxcDali2.server.service.rpc.impl.CabinetRequestServiceImpl;
 import com.pxccn.PxcDali2.server.space.TopSpace;
@@ -22,6 +23,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 public class CommonScheduler {
 
     @Autowired
+    UaAlarmEventService uaAlarmEventService;
+    @Autowired
     TopSpace topSpace;
 
     @Autowired
@@ -30,7 +33,7 @@ public class CommonScheduler {
     @Scheduled(cron = "0/2 * * * * ?")
     private void cabtest() {
         if (topSpace.isReady()) {
-
+            uaAlarmEventService.sendBasicEvent(null,"11111",1);
 
 //            Futures.addCallback(cabinetRequestService.asyncSend(RpcTarget.CommonToAllCabinet, new DetailInfoRequestWrapper(Util.NewCommonHeaderForClient(), true, null)), new FutureCallback<ResponseWrapper>() {
 //                @Override

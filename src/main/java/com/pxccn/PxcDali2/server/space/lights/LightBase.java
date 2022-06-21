@@ -1,18 +1,27 @@
 package com.pxccn.PxcDali2.server.space.lights;
 
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
 import com.prosysopc.ua.stack.builtintypes.LocalizedText;
 import com.prosysopc.ua.stack.builtintypes.Variant;
 import com.prosysopc.ua.stack.core.Identifiers;
 import com.pxccn.PxcDali2.MqSharePack.model.CommonRealtimeStatusModel;
+import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
+import com.pxccn.PxcDali2.MqSharePack.model.Dt8CommandModel;
 import com.pxccn.PxcDali2.MqSharePack.model.LightDetailModelBase;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
 import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
 import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
+import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
+import com.pxccn.PxcDali2.server.space.cabinets.Cabinet;
+import com.pxccn.PxcDali2.server.space.cabinets.CabinetsManager;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,10 +33,13 @@ import java.util.UUID;
 @FwComponentAnnotation
 @Slf4j
 public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNode> {
+    @Autowired
+    CabinetsManager cabinetsManager;
+    @Autowired
+    CabinetRequestService cabinetRequestService;
 
     @Autowired
     UaAlarmEventService uaAlarmEventService;
-
     FwProperty<String> lightName;
     FwProperty<String> description;
     FwProperty<Integer> axis_x;
@@ -40,6 +52,9 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
     FwProperty<Long> lastRealtimeStatusUploadedTimestamp;
     FwProperty<Integer> cabinetId;
     FwProperty<Boolean> isBlinking;
+
+    FwProperty<String> actionFeedback;
+
     UUID lightUuid;
 
     public int getCabinetId() {
@@ -83,7 +98,8 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
         cabinetId = addProperty(-1, "cabinetId");
         terminalIndex = addProperty(-1, "terminalIndex");
         isBlinking = addProperty(false, "isBlinking");
-        shortAddress = addProperty(-1,"shortAddress");
+        shortAddress = addProperty(-1, "shortAddress");
+        actionFeedback = addProperty("", "actionFeedback");
 
     }
 
@@ -114,6 +130,34 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
         }
     }
 
+    public Cabinet getCabinet() {
+        return cabinetsManager.GetOrCreateCabinet(this.cabinetId.get());
+    }
+
+    public void onSendCtlCommand(
+            Dali2LightCommandModel dali2LightCommandModel,
+            Dt8CommandModel dt8CommandModel
+
+    ) {
+        Futures.addCallback(this.getCabinet().sendCtlCommand(Collections.singletonList(this.lightUuid).toArray(UUID[]::new), dali2LightCommandModel, dt8CommandModel), new FutureCallback<>() {
+            @Override
+            public void onSuccess(AsyncActionFeedbackWrapper.SendLevelInstruction result) {
+                if (result.getCountOfDali2() > 0 || result.getCountOfDo()>0) {
+                    log.info("灯具<{}>成功执行命令:{},{}", lightName.get(), dali2LightCommandModel, dt8CommandModel);
+                }else{
+                    log.error("灯具<{}>未能被命中！",lightName.get());
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.error("灯具<{}>未能成功执行命令:{}", lightName.get(), t.getMessage());
+            }
+        }, MoreExecutors.directExecutor());
+
+    }
+
+
     @Override
     protected LCS_LightBaseNode createUaNode() {
         return new LCS_LightBaseNode(this, this.getName(), this.getName());
@@ -136,6 +180,8 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
             addProperty(comp.terminalIndex);
             addProperty(comp.isBlinking);
             addProperty(comp.shortAddress);
+            addProperty(comp.actionFeedback);
+
             addAdditionalDeclares(methods.values());
         }
 
@@ -146,9 +192,16 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
             blink(new UaHelperUtil.MethodArgument[]{new UaHelperUtil.MethodArgument("enable", Identifiers.Boolean)}, null),
-            fetchDetailsNow();
-//            removeThisLight();
+            fetchDetailsNow(),
 
+            sendCtlCommand(new UaHelperUtil.MethodArgument[]{
+                    new UaHelperUtil.MethodArgument("action", Dali2LightCommandModel.Instructions.class),
+                    new UaHelperUtil.MethodArgument("parameter", Identifiers.Int32),
+                    new UaHelperUtil.MethodArgument("dt8Action", Dt8CommandModel.Instructions.class),
+                    new UaHelperUtil.MethodArgument("dt8ActionParam", Identifiers.Int32),
+                    new UaHelperUtil.MethodArgument("dt8ActionParam2", Identifiers.Int32),
+
+            }, null);
 
             private UaHelperUtil.MethodArgument[] in = null;
             private UaHelperUtil.MethodArgument[] out = null;
@@ -179,6 +232,11 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
                 return null;
             } else if (declared == methods.fetchDetailsNow) {
                 this.comp.onFetchDetailsNow();
+                return null;
+            } else if (declared == methods.sendCtlCommand) {
+                var Cmd103 = new Dali2LightCommandModel(UaHelperUtil.getEnum(Dali2LightCommandModel.Instructions.class, input[0].intValue()), input[1].intValue());
+                var CmdDt8 = new Dt8CommandModel(UaHelperUtil.getEnum(Dt8CommandModel.Instructions.class, input[2].intValue()), input[3].intValue(), input[4].intValue());
+                this.comp.onSendCtlCommand(Cmd103, CmdDt8);
                 return null;
             }
             return super.onMethodCall(declared, input);

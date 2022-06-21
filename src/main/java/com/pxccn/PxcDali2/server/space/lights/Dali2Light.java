@@ -8,10 +8,12 @@ import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.stack.builtintypes.Variant;
 import com.prosysopc.ua.stack.core.Identifiers;
 import com.prosysopc.ua.stack.core.StatusCodes;
+import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
 import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightDetailModel;
 import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightRealtimeStatusModel;
+import com.pxccn.PxcDali2.MqSharePack.model.Dt8CommandModel;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.ActionWithFeedbackRequestWrapper;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.Util;
 import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
@@ -23,6 +25,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.annotation.PostConstruct;
+import java.util.Collections;
 import java.util.UUID;
 
 @FwComponentAnnotation
@@ -32,8 +35,8 @@ public class Dali2Light extends LightBase {
     FwProperty<String> subscribe_fault;
     FwProperty<String> lightType;
 
-    @Autowired
-    CabinetRequestService cabinetRequestService;
+
+
 
     @PostConstruct
     public void post() {
@@ -41,6 +44,7 @@ public class Dali2Light extends LightBase {
         lightType = addProperty("DALI2", "lightType");
         subscribe_level = addProperty(0.0, "subscribe_level");
         subscribe_fault = addProperty("", "subscribe_fault");
+
     }
 
     public void onNewStatus(Dali2LightRealtimeStatusModel lrs) {
@@ -54,19 +58,41 @@ public class Dali2Light extends LightBase {
     }
 
     public void onSetNewAddress(int newAddress) {
-        log.debug("执行灯具<{}>短地址从{}修改到{}", this.lightName.get(), this.shortAddress.get(), newAddress);
-        Futures.addCallback(cabinetRequestService.asyncSend(RpcTarget.ToCabinet(this.cabinetId.get()), ActionWithFeedbackRequestWrapper.SetShortAddress(Util.NewCommonHeaderForClient(), new UUID[]{this.lightUuid}, newAddress)), new FutureCallback<ResponseWrapper>() {
+        log.trace("onSetNewAddress({}): newAddress={}", this.lightName.get(), newAddress);
+        this.actionFeedback.set("");
+        var f = this.cabinetRequestService.asyncSendWithAsyncFeedback(
+                RpcTarget.ToCabinet(this.cabinetId.get()),
+                ActionWithFeedbackRequestWrapper.SetShortAddress(
+                        Util.NewCommonHeaderForClient(),
+                        Collections.singleton(this.lightUuid).toArray(UUID[]::new),
+                        newAddress),
+                (ResponseWrapper) -> {
+                    log.info("控制柜收到修改短地址指令");
+                }, 20000);
+        Futures.addCallback(f, new FutureCallback<>() {
             @Override
-            public void onSuccess(@Nullable ResponseWrapper result) {
-                log.info("执行灯具<{}>短地址从{}修改到{},指令下发成功",lightName.get(), shortAddress.get(), newAddress);
+            public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
+                if (result == null || result.getFeedback() == null) {
+                    log.error("内部错误,未返回有效内容");
+                    return;
+                }
+                if (result.getFeedback() instanceof AsyncActionFeedbackWrapper.SetShortAddress) {
+                    log.info("修改短地址成功");
+                    actionFeedback.set("修改短地址成功,现在为" + newAddress);
+                }
             }
 
             @Override
             public void onFailure(Throwable t) {
-                log.error("执行灯具<{}>短地址从{}修改到{},指令下发失败:{}",lightName.get(), shortAddress.get(), newAddress,t.getMessage());
+                log.error("修改短地址失败：{}", t.getMessage());
+                actionFeedback.set("修改短地址失败:" + t.getMessage());
+
             }
         }, MoreExecutors.directExecutor());
     }
+
+
+
 
     protected LCS_LightBaseNode createUaNode() {
         return new LCS_Dali2LightNode(this, this.getName(), this.getName());
@@ -87,6 +113,7 @@ public class Dali2Light extends LightBase {
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
             setShortAddress(new UaHelperUtil.MethodArgument[]{new UaHelperUtil.MethodArgument("newAddress", Identifiers.Int32)}, null);
+
 
             private UaHelperUtil.MethodArgument[] in = null;
             private UaHelperUtil.MethodArgument[] out = null;

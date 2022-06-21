@@ -4,6 +4,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToPlcQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
+import com.pxccn.PxcDali2.MqSharePack.model.Dt8CommandModel;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.Util;
 
@@ -24,8 +25,8 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
     }
 
 
-    public static ActionWithFeedbackRequestWrapper SendLevelInstruction(ProtoHeaders headers, UUID[] uuid, Dali2LightCommandModel command) {
-        return new ActionWithFeedbackRequestWrapper(headers, new SendLevelInstruction(uuid, command));
+    public static ActionWithFeedbackRequestWrapper SendLevelInstruction(ProtoHeaders headers, UUID[] uuid, Dali2LightCommandModel command, Dt8CommandModel dt8Command) {
+        return new ActionWithFeedbackRequestWrapper(headers, new SendLevelInstruction(uuid, command, dt8Command));
     }
 
     /***************************************************************************/
@@ -101,15 +102,16 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
     }
 
     public static class SendLevelInstruction extends Action<LcsProtos.ActionWithFeedbackRequest.SendLevelInstruction> {
-        public SendLevelInstruction(UUID[] targetUuids, Dali2LightCommandModel command) {
+        public SendLevelInstruction(UUID[] targetUuids, Dali2LightCommandModel command, Dt8CommandModel dt8Command) {
             this.command = command;
             this.targetUuids = targetUuids;
+            this.dt8Command = dt8Command;
         }
 
         public SendLevelInstruction(LcsProtos.ActionWithFeedbackRequest.SendLevelInstruction pb) {
             this.command = new Dali2LightCommandModel(pb.getCommand());
             this.targetUuids = pb.getTargetUuidsList().stream().map(Util::ToUuid).toArray(UUID[]::new);
-
+            this.dt8Command = new Dt8CommandModel(pb.getDt8Command());
         }
 
         public Dali2LightCommandModel getCommand() {
@@ -120,13 +122,21 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
             return targetUuids;
         }
 
+        public Dt8CommandModel getDt8Command() {
+            return dt8Command;
+        }
+
         final UUID[] targetUuids;
         final Dali2LightCommandModel command;
+
+
+        final Dt8CommandModel dt8Command;
 
         @Override
         LcsProtos.ActionWithFeedbackRequest.SendLevelInstruction getPb() {
             return LcsProtos.ActionWithFeedbackRequest.SendLevelInstruction.newBuilder()
                     .setCommand(command.getPb())
+                    .setDt8Command(dt8Command.getPb())
                     .addAllTargetUuids(Arrays.stream(this.targetUuids).map(Util::ToPbUuid).collect(Collectors.toList()))
                     .build();
         }
@@ -156,6 +166,9 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
                 break;
             case LcsProtos.ActionWithFeedbackRequest.SETSHORTADDRESS_FIELD_NUMBER:
                 this.action = new SetShortAddress(v.getSetShortAddress());
+                break;
+            case LcsProtos.ActionWithFeedbackRequest.SENDLEVELINSTRUCTION_FIELD_NUMBER:
+                this.action = new SendLevelInstruction(v.getSendLevelInstruction());
                 break;
             default:
                 this.action = null;

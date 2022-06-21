@@ -20,6 +20,7 @@ logging:
     com.pxccn.PxcDali2.server.framework: info
     org.springframework.amqp.rabbit.listener.DirectReplyToMessageListenerContainer: warn
     org.springframework.amqp.rabbit.listener.DirectMessageListenerContainer: warn
+    com.pxccn.PxcDali2.server.space.lights: trace
 
 prosys:
   ApplicationName: LCS_Server@hostname

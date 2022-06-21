@@ -23,6 +23,17 @@ message Dali2LightCommand{
   int32 parameter = 2;
 }
 
+message Dt8Command{
+  string instruction = 1; //指令枚举名称
+  int32 dt8ActionParam = 2;
+  int32 dt8ActionParam2 = 3;
+}
+
+/*****************************************************************************/
+/*************北向实时数据包*****************************************************/
+/*****************************************************************************/
+
+//实时数据包公共部分
 message CommonRealtimeStatus{
   Uuid id = 1;
   int32 terminalIndex = 2;
@@ -44,7 +55,7 @@ message DoLightRealtimeStatus{
   CommonRealtimeStatus common = 1;
   bool currentValue = 2;
 }
-//TODO
+//TODO DALI2设备报文
 message Dali2DeviceRealtimeStatus{
 
 }
@@ -60,6 +71,11 @@ message RealtimeStatus{
 message CabinetStatus{
   repeated sKsV props = 1;
 }
+
+/*****************************************************************************/
+/*************详细信息数据包*****************************************************/
+/*****************************************************************************/
+
 //灯具详细信息上传报文
 message LightsDetailUpload{
   message LightCommonDetail{
@@ -104,6 +120,10 @@ message CabinetDetailUpload{
   int32 axis_z = 5;
   bool isMaintenance = 6;
 }
+
+
+
+
 //控制器简单事件
 message CabinetSimpleEvent{
   Uuid uuid = 1;
@@ -144,6 +164,7 @@ message ActionWithFeedbackRequest{
   message SendLevelInstruction{
     Dali2LightCommand command = 1;
     repeated Uuid targetUuids = 2;
+    Dt8Command dt8command = 3;
   }
 }
 
@@ -155,21 +176,22 @@ message ActionWithFeedbackResp{
 //动作异步回应
 message AsyncActionFeedback{
   Uuid requestId = 1;
+  string exceptionMessage = 2;
   oneof payload {
-    Blink blink = 2;
-    SetShortAddress setShortAddress = 3;
+    Blink blink = 3;
+    SetShortAddress setShortAddress = 4;
+    SendLevelInstruction sendLevelInstruction = 5;
   }
   message Blink{
-    bool success = 1;
-    string failureReason = 2;
+
   }
   message SetShortAddress{
-    bool success = 1;
-    string failureReason = 2;
+
   }
   message SendLevelInstruction{
-    bool success = 1;
-    string failureReason = 2;
+    int32 countOfRoom = 1;
+    int32 countOfDo =2;
+    int32 countOfDali2 = 3;
   }
 }
 

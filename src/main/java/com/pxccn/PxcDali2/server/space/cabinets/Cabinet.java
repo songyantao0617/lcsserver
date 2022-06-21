@@ -1,19 +1,21 @@
 package com.pxccn.PxcDali2.server.space.cabinets;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.*;
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
 import com.prosysopc.ua.stack.builtintypes.DateTime;
 import com.prosysopc.ua.stack.builtintypes.LocalizedText;
 import com.prosysopc.ua.stack.builtintypes.Variant;
 import com.prosysopc.ua.stack.core.Identifiers;
+import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
+import com.pxccn.PxcDali2.MqSharePack.model.Dt8CommandModel;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.ActionWithFeedbackRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.DetailInfoRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.PollManagerSettingRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.CabinetDetailUploadWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.CabinetStatusWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.Util;
 import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
 import com.pxccn.PxcDali2.server.events.CabinetAliveChangedEvent;
@@ -52,6 +54,8 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
     FwProperty<String> Name;
     FwProperty<String> Description;
     FwProperty<String> Version;
+    FwProperty<String> Ip0;
+    FwProperty<String> Ip1;
     FwProperty<Boolean> IsMaintenance;
     FwProperty<Integer> Axis_x;
     FwProperty<Integer> Axis_y;
@@ -79,6 +83,8 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         Axis_z = addProperty(0, "axis_z");
         Version = addProperty("", "version");
         IsMaintenance = addProperty(true, "isMaintenance");
+        Ip0 = addProperty("", "Ip0");
+        Ip1 = addProperty("", "Ip1");
     }
 
     private long _lastMsgTimestamp = System.currentTimeMillis();
@@ -135,6 +141,51 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         }
     }
 
+    public ListenableFuture<AsyncActionFeedbackWrapper.SendLevelInstruction> sendCtlCommand(
+            UUID[] resource,
+            Dali2LightCommandModel dali2LightCommandModel,
+            Dt8CommandModel dt8CommandModel
+
+    ) {
+        log.trace("sendCtlCommand({}): resource={},dali2LightCommandModel={},dt8CommandModel={}", this.Name.get(), resource, dali2LightCommandModel, dt8CommandModel);
+        SettableFuture<AsyncActionFeedbackWrapper.SendLevelInstruction> future = SettableFuture.create();
+        var f = this.cabinetRequestService.asyncSendWithAsyncFeedback(
+                RpcTarget.ToCabinet(this.CabinetId.get()),
+                ActionWithFeedbackRequestWrapper.SendLevelInstruction(
+                        Util.NewCommonHeaderForClient(),
+                        resource,
+                        dali2LightCommandModel, dt8CommandModel),
+                (ResponseWrapper) -> {
+                    log.trace("控制柜收到灯具命令->{},{}", dali2LightCommandModel, dt8CommandModel);
+                }, 20000);
+        Futures.addCallback(f, new FutureCallback<>() {
+            @Override
+            public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
+                if (result == null || result.getFeedback() == null) {
+                    log.error("内部错误,未返回有效内容");
+                    return;
+                }
+                if (result.getFeedback() instanceof AsyncActionFeedbackWrapper.SendLevelInstruction) {
+                    var dali2Light = ((AsyncActionFeedbackWrapper.SendLevelInstruction) result.getFeedback()).getCountOfDali2();
+                    var doLight = ((AsyncActionFeedbackWrapper.SendLevelInstruction) result.getFeedback()).getCountOfDo();
+                    var room = ((AsyncActionFeedbackWrapper.SendLevelInstruction) result.getFeedback()).getCountOfRoom();
+                    if (dali2Light > 0 || doLight > 0 || room > 0)
+                        log.trace("执行灯具命令成功,dali2Light={},doLight={},room={}", dali2Light, doLight, room);
+                    else
+                        log.trace("没有命中任何资源！");
+                    future.set(((AsyncActionFeedbackWrapper.SendLevelInstruction) result.getFeedback()));
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.error("执行命令失败：{}", t.getMessage());
+                future.setException(t);
+            }
+        }, MoreExecutors.directExecutor());
+        return future;
+    }
+
     /**
      * 清除控制器实时状态缓存
      */
@@ -158,10 +209,12 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         }, MoreExecutors.directExecutor());
     }
 
-    public void updateStatus(CabinetStatusWrapper status) {
+    public void onUpdateStatus(CabinetStatusWrapper status) {
         this.Props.get().accept(status.getPropsMap());
         this._lastMsgTimestamp = System.currentTimeMillis();
         this.IsAlive.set(true);
+        this.Ip0.set(status.getHeaders().get("ip0"));
+        this.Ip1.set(status.getHeaders().get("ip1"));
     }
 
     /**
@@ -233,6 +286,8 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
             addProperty(uaComponent.Axis_z);
             addProperty(uaComponent.Version);
             addProperty(uaComponent.IsMaintenance);
+            addProperty(uaComponent.Ip0);
+            addProperty(uaComponent.Ip1);
             addAdditionalDeclares(methods.values());
         }
 

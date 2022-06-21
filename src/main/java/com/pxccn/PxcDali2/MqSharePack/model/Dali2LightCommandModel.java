@@ -6,20 +6,37 @@ public class Dali2LightCommandModel implements IPbModel<LcsProtos.Dali2LightComm
 
     public enum Instructions {
         Unknown,
-        DAPC_100,
-        DAPC,
-        OFF,
-        UP,
-        DOWN,
-        STEP_UP,
-        STEP_DOWN,
-        MAX_LEVEL,
-        MIN_LEVEL,
-        STEP_DOWN_AND_OFF,
-        ON_AND_STEP_UP,
-        CONTINUOUS_UP,
-        CONTINUOUS_DOWN,
-        GOTO_SCENE
+        None,
+        DirectPwr_percent,
+        DirectPwr,
+        Off,
+        Up,
+        Down,
+        StepUp,
+        StepDown,
+        MaxLevel,
+        MinLevel,
+        StepDownAndOff,
+        OnAndStepUp,
+        GotoScene,
+        ContinuousUp_V2Only,
+        ContinuousDown_V2Only;
+    }
+
+    public Instructions getInstruction() {
+        return instruction;
+    }
+
+    public int getParameter() {
+        return parameter;
+    }
+
+    @Override
+    public String toString() {
+        return "Dali2LightCommandModel{" +
+                "instruction=" + instruction +
+                ", parameter=" + parameter +
+                '}';
     }
 
     private final Instructions instruction;

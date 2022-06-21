@@ -105,19 +105,15 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
     public void AskToBlinkLight(List<UUID> lightsUuid, boolean enable, int cabinetId) {
         Futures.addCallback(cabinetRequestService.asyncSendWithAsyncFeedback(RpcTarget.ToCabinet(cabinetId),
                 ActionWithFeedbackRequestWrapper.Blink(Util.NewCommonHeaderForClient(), lightsUuid.toArray(new UUID[0]), enable), (ResponseWrapper) -> {
-                    log.info("向控制柜<{}>指定灯具发送闪烁指令成功", cabinetId);
-                }, 5000), new FutureCallback<AsyncActionFeedbackWrapper>() {
+                    log.debug("控制柜<{}>收到闪烁指令", cabinetId);
+                }, 20000), new FutureCallback<AsyncActionFeedbackWrapper>() {
             @Override
             public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
-                if (result == null || result.getFeedback() == null) {
-                    log.error("内部错误");
+                if ((result == null || result.getFeedback() == null) && result.getFeedback() instanceof AsyncActionFeedbackWrapper.Blink) {
+                    log.error("内部错误,未返回有效内容");
                     return;
                 }
-                if (((AsyncActionFeedbackWrapper.Blink) result.getFeedback()).isSuccess()) {
-                    log.info("闪烁成功");
-                }else{
-                    log.error("闪烁失败:{}",(((AsyncActionFeedbackWrapper.Blink) result.getFeedback()).getErrorMsg()));
-                }
+                log.info("闪烁成功");
             }
 
             @Override

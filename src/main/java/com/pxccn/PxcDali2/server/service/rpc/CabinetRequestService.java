@@ -9,6 +9,7 @@ import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeed
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.BadMessageException;
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.OperationFailure;
 
+import javax.annotation.Nullable;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -87,8 +88,17 @@ public interface CabinetRequestService {
     ListenableFuture<Void> writePropertyValueAsync(RpcTarget target, UUID resourceUuid, String slotOrd, String newValue);
 
 
+    /**
+     * 异步发送带Feedback指令
+     *
+     * @param target 发送目标
+     * @param request 请求
+     * @param sendSuccess 发送成功回调，可以为null
+     * @param timeout 超时事件 （ms）
+     * @return
+     */
     ListenableFuture<AsyncActionFeedbackWrapper> asyncSendWithAsyncFeedback(RpcTarget target,
                                                                             ActionWithFeedbackRequestWrapper request,
-                                                                            Consumer<ResponseWrapper> sendSuccess, int timeout
+                                                                            @Nullable Consumer<ResponseWrapper> sendSuccess, int timeout
     );
 }

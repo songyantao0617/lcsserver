@@ -1,24 +1,28 @@
 package com.pxccn.PxcDali2.server.service.opcua;
 
+import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.ValueRanks;
-import com.prosysopc.ua.nodes.MethodArgumentException;
-import com.prosysopc.ua.nodes.UaNode;
-import com.prosysopc.ua.nodes.UaReference;
+import com.prosysopc.ua.nodes.*;
 import com.prosysopc.ua.server.ModellingRule;
+import com.prosysopc.ua.server.NodeManager;
 import com.prosysopc.ua.server.NodeManagerUaNode;
-import com.prosysopc.ua.server.nodes.CacheProperty;
-import com.prosysopc.ua.server.nodes.CacheVariable;
-import com.prosysopc.ua.server.nodes.PlainMethod;
+import com.prosysopc.ua.server.nodes.*;
 import com.prosysopc.ua.stack.builtintypes.*;
 import com.prosysopc.ua.stack.core.AccessLevelType;
 import com.prosysopc.ua.stack.core.Argument;
 import com.prosysopc.ua.stack.core.Identifiers;
 import com.prosysopc.ua.types.opcua.server.FolderTypeNode;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_FastObjectNodeBase;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_Folder;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_NodeBasedMethodNode;
+//import com.pxccn.PxcDali2.server.service.opcua.type.enums.IUaEnum;
+//import com.pxccn.PxcDali2.server.service.opcua.type.enums.UaLightCommandEnum;
+import org.springframework.util.Assert;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 
 public class UaHelperUtil {
@@ -750,11 +754,55 @@ public class UaHelperUtil {
             this.dataType = dataType;
         }
 
+        public MethodArgument(String name,Class<? extends Enum> enumCls){
+            this.name = name;
+            this.dataType = UaHelperUtil.getEnumNodeId(LCS_FastObjectNodeBase.manager,enumCls);
+        }
+
         public MethodArgument(String name, NodeId dataType, int arrLength) {
             this(name, dataType);
             this.arrLength = arrLength;
         }
     }
 
+    static Map<Class<? extends Enum>,NodeId> enumTypeMap = new HashMap<>();
+    static NodeId registerEnumType(NodeManagerUaNode manager, Class<? extends Enum> enumCls) throws StatusException {
+        Assert.isTrue(enumCls.isEnum(),"注册UA枚举代码不正确");
+        int ns = manager.getNamespaceIndex();
+        String TypeName = "LCS_"+enumCls.getName();
+        NodeId thisTypeNodeId = new NodeId(ns, TypeName);
+        UaDataType thisType = new UaDataTypeNode(manager, thisTypeNodeId, TypeName, LocalizedText.NO_LOCALE);
+        UaType enumerationType = manager.getServer().getNodeManagerRoot().getType(Identifiers.Enumeration);
+        enumerationType.addSubType(thisType);
+        QualifiedName qn = new QualifiedName("EnumStrings");
+        NodeId myEnumStringsId = manager.createNodeId(thisType,qn);
+        PlainProperty<LocalizedText[]> enumStringsProperty = new PlainProperty<>(manager, myEnumStringsId,qn , new LocalizedText("EnumStrings", LocalizedText.NO_LOCALE));
+        enumStringsProperty.setDataTypeId(Identifiers.LocalizedText);
+        enumStringsProperty.setValueRank(ValueRanks.OneDimension);
+        enumStringsProperty.setArrayDimensions(new UnsignedInteger[]{UnsignedInteger.ZERO});
+        enumStringsProperty.setAccessLevel(AccessLevelType.CurrentRead);
+        enumStringsProperty.addReference(Identifiers.ModellingRule_Mandatory, Identifiers.HasModellingRule, false);
+        enumStringsProperty.setCurrentValue(Arrays.stream(enumCls.getEnumConstants()).map(s->new LocalizedText(s.name())).toArray(LocalizedText[]::new));
+        thisType.addProperty(enumStringsProperty);
+        return thisTypeNodeId;
+    }
+
+    public static NodeId getEnumNodeId(NodeManagerUaNode manager,Class<? extends Enum> enumCls) {
+        if(enumTypeMap.containsKey(enumCls)){
+            return enumTypeMap.get(enumCls);
+        }
+        try {
+            var n = registerEnumType(manager, enumCls);
+            enumTypeMap.put(enumCls,n);
+            return n;
+        }catch (Throwable e){
+            throw new RuntimeException(e);
+        }
+
+    }
+
+    public static <T extends Enum > T getEnum(Class<T> enumCls, int value){
+        return Arrays.stream(enumCls.getEnumConstants()).filter(i->i.ordinal()==value).findFirst().orElse(null);
+    }
 
 }

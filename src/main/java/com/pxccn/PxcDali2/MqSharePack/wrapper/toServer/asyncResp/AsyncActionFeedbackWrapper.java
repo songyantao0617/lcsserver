@@ -11,22 +11,6 @@ import java.util.UUID;
 public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.AsyncActionFeedback> {
     public static final String TypeUrl = "type.googleapis.com/AsyncActionFeedback";
 
-    public static AsyncActionFeedbackWrapper Blink(ToServerMsgParam param, UUID requestId) {
-        return new AsyncActionFeedbackWrapper(param, requestId, new Blink());
-    }
-
-    public static AsyncActionFeedbackWrapper Blink(ToServerMsgParam param, UUID requestId, String errorReason) {
-        return new AsyncActionFeedbackWrapper(param, requestId, new Blink(errorReason));
-    }
-
-    public static AsyncActionFeedbackWrapper SetShortAddressSuccess(ToServerMsgParam param, UUID requestId) {
-        return new AsyncActionFeedbackWrapper(param, requestId, new SetShortAddress());
-    }
-
-    public static AsyncActionFeedbackWrapper SetShortAddressFailure(ToServerMsgParam param, UUID requestId, String errorReason) {
-        return new AsyncActionFeedbackWrapper(param, requestId, new SetShortAddress(errorReason));
-    }
-
 
     private final UUID requestId;
 
@@ -40,6 +24,12 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
 
     final ActionFeedBack feedBack;
 
+    public String getExceptionMessage() {
+        return exceptionMessage;
+    }
+
+    final String exceptionMessage;
+
     public static abstract class ActionFeedBack<T extends com.google.protobuf.GeneratedMessageV3> {
         abstract T getPb();
     }
@@ -47,73 +37,81 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
     public static class Blink extends ActionFeedBack<LcsProtos.AsyncActionFeedback.Blink> {
 
         public Blink(LcsProtos.AsyncActionFeedback.Blink pb) {
-            this.success = pb.getSuccess();
-            this.errorMsg = pb.getFailureReason();
+
         }
 
         public Blink() {
-            this.success = true;
-            this.errorMsg = "";
+
         }
 
         public Blink(String errorMsg) {
-            this.success = false;
-            this.errorMsg = errorMsg;
+
         }
 
-        public boolean isSuccess() {
-            return success;
-        }
-
-        public String getErrorMsg() {
-            return errorMsg;
-        }
-
-        final boolean success;
-        final String errorMsg;
 
         @Override
         LcsProtos.AsyncActionFeedback.Blink getPb() {
             return LcsProtos.AsyncActionFeedback.Blink.newBuilder()
-                    .setSuccess(this.success)
-                    .setFailureReason(this.errorMsg)
                     .build();
         }
     }
 
     public static class SetShortAddress extends ActionFeedBack<LcsProtos.AsyncActionFeedback.SetShortAddress> {
 
-        public boolean isSuccess() {
-            return success;
-        }
-
-        public String getFailureReason() {
-            return failureReason;
-        }
-
-        boolean success;
-        String failureReason;
 
         public SetShortAddress() {
-            this.success = true;
-            this.failureReason = "";
+
         }
 
-        public SetShortAddress(String errorMessage) {
-            this.success = false;
-            this.failureReason = errorMessage;
-        }
 
         public SetShortAddress(LcsProtos.AsyncActionFeedback.SetShortAddress pb) {
-            this.success = pb.getSuccess();
-            this.failureReason = pb.getFailureReason();
+
         }
 
         @Override
         LcsProtos.AsyncActionFeedback.SetShortAddress getPb() {
             return LcsProtos.AsyncActionFeedback.SetShortAddress.newBuilder()
-                    .setSuccess(this.success)
-                    .setFailureReason(this.failureReason)
+
+                    .build();
+        }
+    }
+
+    public static class SendLevelInstruction extends ActionFeedBack<LcsProtos.AsyncActionFeedback.SendLevelInstruction> {
+
+        public int getCountOfRoom() {
+            return countOfRoom;
+        }
+
+        public int getCountOfDo() {
+            return countOfDo;
+        }
+
+        public int getCountOfDali2() {
+            return countOfDali2;
+        }
+
+        final int countOfRoom;
+        final int countOfDo;
+        final int countOfDali2;
+
+        public SendLevelInstruction(int countOfRoom,int countOfDo,int countOfDali2) {
+            this.countOfDali2 = countOfDali2;
+            this.countOfDo = countOfDo;
+            this.countOfRoom = countOfRoom;
+        }
+
+        public SendLevelInstruction(LcsProtos.AsyncActionFeedback.SendLevelInstruction pb) {
+            this.countOfRoom = pb.getCountOfRoom();
+            this.countOfDo = pb.getCountOfDo();
+            this.countOfDali2 = pb.getCountOfDali2();
+        }
+
+        @Override
+        LcsProtos.AsyncActionFeedback.SendLevelInstruction getPb() {
+            return LcsProtos.AsyncActionFeedback.SendLevelInstruction.newBuilder()
+                    .setCountOfDali2(this.countOfDali2)
+                    .setCountOfDo(this.countOfDo)
+                    .setCountOfRoom(this.countOfRoom)
                     .build();
         }
     }
@@ -122,7 +120,6 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
     public AsyncActionFeedbackWrapper(LcsProtos.ToServerMessage pb) throws InvalidProtocolBufferException {
         super(pb);
         LcsProtos.AsyncActionFeedback v = pb.getPayload().unpack(LcsProtos.AsyncActionFeedback.class);
-        //TODO:赋property
         this.requestId = Util.ToUuid(v.getRequestId());
         ActionFeedBack feedBack;
         switch (v.getPayloadCase().getNumber()) {
@@ -132,36 +129,52 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
             case LcsProtos.AsyncActionFeedback.BLINK_FIELD_NUMBER:
                 feedBack = new Blink(v.getBlink());
                 break;
+            case LcsProtos.AsyncActionFeedback.SENDLEVELINSTRUCTION_FIELD_NUMBER:
+                feedBack = new SendLevelInstruction(v.getSendLevelInstruction());
+                break;
             default:
                 feedBack = null;
                 break;
         }
         this.feedBack = feedBack;
+        this.exceptionMessage = v.getExceptionMessage();
     }
 
     //正向构造
     public AsyncActionFeedbackWrapper(ToServerMsgParam param,
-                                      //TODO: 构造参数
                                       UUID requestId,
                                       ActionFeedBack actionFeedBack
     ) {
         super(param);
-        //TODO:赋property
         this.requestId = requestId;
         this.feedBack = actionFeedBack;
+        this.exceptionMessage = "";
+    }
+
+    //正向构造（异常）
+    public AsyncActionFeedbackWrapper(ToServerMsgParam param,
+                                      UUID requestId,
+                                      String exceptionMessage
+    ) {
+        super(param);
+        this.requestId = requestId;
+        this.feedBack = null;
+        this.exceptionMessage = exceptionMessage;
     }
 
 
     @Override
     protected LcsProtos.AsyncActionFeedback.Builder internal_get_payload() {
         LcsProtos.AsyncActionFeedback.Builder builder = LcsProtos.AsyncActionFeedback.newBuilder()
-                //TODO:property转pb
-                .setRequestId(Util.ToPbUuid(this.requestId));
+                .setRequestId(Util.ToPbUuid(this.requestId))
+                .setExceptionMessage(this.exceptionMessage);
 
         if (this.feedBack instanceof Blink) {
             builder.setBlink(((Blink) this.feedBack).getPb());
         } else if (this.feedBack instanceof SetShortAddress) {
             builder.setSetShortAddress(((SetShortAddress) this.feedBack).getPb());
+        }else if(this.feedBack instanceof SendLevelInstruction){
+            builder.setSendLevelInstruction(((SendLevelInstruction) this.feedBack).getPb());
         }
 
 

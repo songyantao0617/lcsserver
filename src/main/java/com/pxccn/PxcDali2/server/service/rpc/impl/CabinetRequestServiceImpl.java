@@ -15,6 +15,7 @@ import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.response.PingRespWrapper;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.common.LcsExecutors;
 import com.pxccn.PxcDali2.Util;
+import com.pxccn.PxcDali2.common.LcsThreadFactory;
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.BadMessageException;
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.OperationFailure;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
@@ -22,6 +23,9 @@ import com.pxccn.PxcDali2.server.service.rpc.InvokeParam;
 import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
 import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.springframework.amqp.core.AmqpMessageReturnedException;
+import org.springframework.amqp.core.AmqpReplyTimeoutException;
+import org.springframework.amqp.core.ReturnedMessage;
 import org.springframework.amqp.rabbit.AsyncRabbitTemplate;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.InitializingBean;
@@ -40,10 +44,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 
 import static com.pxccn.PxcDali2.server.mq.config.MqConfigure.switch_broadcastToPlc;
@@ -58,12 +59,19 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
     AsyncRabbitTemplate asyncRabbitTemplate;
 
     private ExecutorService executor;
-//    private ScheduledExecutorService timeoutExecutor;
+    private ScheduledExecutorService timeoutExecutor;
 
     @PostConstruct
-    public void initExecutor() {
+    public void init() {
         executor = LcsExecutors.newWorkStealingPool(40, getClass());
-//        timeoutExecutor = Executors.newScheduledThreadPool(2, LcsThreadFactory.forName("lcs-response-timeout"));
+        timeoutExecutor = Executors.newScheduledThreadPool(2, LcsThreadFactory.forName("lcs-response-timeout"));
+//        rabbitTemplate.setReturnsCallback(new RabbitTemplate.ReturnsCallback() {
+//            @Override
+//            public void returnedMessage(ReturnedMessage returned) {
+//                log.error("发送失败");
+////                returned.getMessage().getMessageProperties().
+//            }
+//        });
     }
 
     public ResponseWrapper syncSend(RpcTarget target, ProtoToPlcQueueMsg request) throws InvalidProtocolBufferException, BadMessageException, OperationFailure {
@@ -256,53 +264,72 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
 
     public ListenableFuture<AsyncActionFeedbackWrapper> asyncSendWithAsyncFeedback(RpcTarget target,
                                                                                    ActionWithFeedbackRequestWrapper request,
-                                                                                   Consumer<ResponseWrapper> sendSuccess, int timeout
+                                                                                   @Nullable Consumer<ResponseWrapper> sendSuccess,
+                                                                                   int timeout
     ) {
+        if (timeout < 1000) {
+            timeout = 300000;
+        }
         SettableFuture<AsyncActionFeedbackWrapper> feedbackFuture = SettableFuture.create();
         var t = new Task();
         t.consumer = feedbackFuture;
         t.timeout = timeout;
-        log.error("OOO->{}",request.getRequestId());
         this.pending.put(request.getRequestId(), t);
-        var scheduleFuture = this.taskScheduler.schedule(() -> {
+        ScheduledFuture<?> scheduleFuture = this.timeoutExecutor.schedule(() -> {
+            log.debug("异步反馈超时触发");
             var f = this.pending.remove(request.getRequestId());
-            if(f!=null){
+            if (f != null) {
                 feedbackFuture.setException(new TimeoutException("异步反馈超时！"));
             }
-        }, new Date(System.currentTimeMillis() + timeout));
-        Futures.addCallback(this.asyncSend(target, request), new FutureCallback<>() {
-            @Override
-            public void onSuccess(@Nullable ResponseWrapper result) {
-                log.debug("<{}>收到请求，正在处理", target);
-                if (sendSuccess != null) {
-                    sendSuccess.accept(result);
-                }
-            }
-
-            @Override
-            public void onFailure(Throwable t) {
-                log.error("<{}>无法投递请求！:{}", target, t.getMessage());
-                scheduleFuture.cancel(true);
-                pending.remove(request.getRequestId());
-                feedbackFuture.setException(t);
-            }
-        }, executor);
+        }, timeout, TimeUnit.MILLISECONDS);
+        t.schedule = scheduleFuture;
+        var requestFuture = this.asyncSend(target, request);
+        Futures.addCallback(
+                Futures.withTimeout(requestFuture, timeout - 100, TimeUnit.MILLISECONDS, this.timeoutExecutor)
+                , new FutureCallback<>() {
+                    @Override
+                    public void onSuccess(@Nullable ResponseWrapper result) {
+                        log.debug("<{}> 收到请求", target.toFriendlyString());
+                        if (sendSuccess != null) {
+                            sendSuccess.accept(result);
+                        }
+                    }
+                    @Override
+                    public void onFailure(Throwable t) {
+                        if (t instanceof AmqpMessageReturnedException) {
+                            log.error("<{}>投递请求消息被打回，因为目标控制器不在线",target.toFriendlyString());
+                        } else if (t instanceof AmqpReplyTimeoutException) {
+                            log.error("<{}>超时！未及时收到控制器返回！", target.toFriendlyString());
+                        }else{
+                            log.error("<{}>投递请求失败:{}",target.toFriendlyString(), t.getMessage());
+                        }
+                        scheduleFuture.cancel(true);
+                        pending.remove(request.getRequestId());
+                        feedbackFuture.setException(t);
+                    }
+                }, executor);
         return feedbackFuture;
     }
 
 
     //////////////////////////
-    private ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
+//    private ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
     private final ConcurrentMap<UUID, Task> pending = new ConcurrentHashMap<>();
 
 
     public void onReceiveFeedback(AsyncActionFeedbackWrapper feedbackWrapper) {
         try {
             UUID requestId = feedbackWrapper.getRequestId();
-            log.error("III->{}",requestId);
-            var t = this.pending.get(requestId);
+            var t = this.pending.remove(requestId);
             if (t != null) {
-                t.consumer.set(feedbackWrapper);
+                if (t.schedule != null) {
+                    t.schedule.cancel(true);
+                }
+                String error = feedbackWrapper.getExceptionMessage();
+                if (error.isEmpty())
+                    t.consumer.set(feedbackWrapper);
+                else
+                    t.consumer.setException(new IllegalStateException(error));
             } else {
                 log.warn("反馈信息迟到:{}", feedbackWrapper);
             }
@@ -313,12 +340,14 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        taskScheduler.afterPropertiesSet();
+//        taskScheduler.afterPropertiesSet();
     }
 
     static class Task {
         public SettableFuture<AsyncActionFeedbackWrapper> consumer;
         public int timeout;
+
+        public ScheduledFuture<?> schedule;
     }
 
 

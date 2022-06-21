@@ -22,7 +22,7 @@ import java.util.Objects;
 @Slf4j
 public abstract class LCS_FastObjectNodeBase extends UaObjectNode {
     static UaType objectTypeContainer;
-    static LcsNodeManager manager;
+    public static LcsNodeManager manager;
     private static boolean basicInitFinish = false;
     private static final Map<NodeId, UaObjectType> objectTypeNodes = new HashMap<NodeId, UaObjectType>();
     private final Map<UaHelperUtil.UaDeclare, UaNode> _nodeCache = new HashMap<>();

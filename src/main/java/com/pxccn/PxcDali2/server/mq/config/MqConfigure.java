@@ -75,7 +75,9 @@ public class MqConfigure {
 
     @Bean
     AsyncRabbitTemplate asyncRabbitTemplate(ObjectProvider<RabbitTemplate> rabbitTemplate) {
-        return new AsyncRabbitTemplate(rabbitTemplate.getIfAvailable());
+        var a = new AsyncRabbitTemplate(rabbitTemplate.getIfAvailable());
+        a.setMandatory(true);
+        return a;
     }
 
 

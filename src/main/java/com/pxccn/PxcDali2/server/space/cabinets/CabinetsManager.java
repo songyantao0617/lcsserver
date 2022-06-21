@@ -1,12 +1,6 @@
 package com.pxccn.PxcDali2.server.space.cabinets;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.prosysopc.ua.nodes.UaNode;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.DetailInfoRequestWrapper;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
-import com.pxccn.PxcDali2.Util;
 import com.pxccn.PxcDali2.server.events.CabinetDetailUploadEvent;
 import com.pxccn.PxcDali2.server.events.CabinetSimpleEvent;
 import com.pxccn.PxcDali2.server.events.CabinetStatusMqEvent;
@@ -15,10 +9,8 @@ import com.pxccn.PxcDali2.server.framework.FwProperty;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
-import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
@@ -31,6 +23,8 @@ import java.util.*;
 public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManagerNode> {
     @Autowired
     CabinetRequestService cabinetRequestService;
+
+
 
     @EventListener
     public void onCabinetSimpleEvent(CabinetSimpleEvent event) {
@@ -54,7 +48,7 @@ public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManag
     public void onCabinetStatusMqEvent(CabinetStatusMqEvent event) {
         var message = event.getMessage();
         var cabinet = this.GetOrCreateCabinet(message.getCabinetId());
-        cabinet.updateStatus(message);
+        cabinet.onUpdateStatus(message);
     }
 
 

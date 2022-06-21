@@ -121,26 +121,20 @@ message CabinetDetailUpload{
   bool isMaintenance = 6;
 }
 
-
-
-
-//控制器简单事件
+//控制器简单事件推送
 message CabinetSimpleEvent{
   Uuid uuid = 1;
   string event = 2; //枚举
 }
-//简单操作请求
+
+
+//简单操作请求下发
 message ActionRequest{
-  enum A{
-    SYNC_DB_BASIC = 0;
-    SYNC_DB_ROOM = 1;
-  }
-  Uuid uuid = 1;
-  A action = 2;
+  string instruction = 1;//枚举
 }
 //简单操作回应
 message ActionResp{
-
+  bool success = 1;
 }
 
 //带Feedback动作请求
@@ -150,6 +144,9 @@ message ActionWithFeedbackRequest{
     Blink blink = 3;
     SetShortAddress setShortAddress = 4;
     SendLevelInstruction sendLevelInstruction = 5;
+    SendBroadcastLevelInstruction sendBroadcastLevelInstruction = 6;
+    SaveStation saveStation = 7;
+    SetSysTime setSysTime = 8;
   }
   //闪烁命令
   message Blink{
@@ -161,10 +158,29 @@ message ActionWithFeedbackRequest{
     int32 newShortAddress = 1;
     repeated Uuid targetUuids = 2;
   }
+  //发送亮度指令
   message SendLevelInstruction{
     Dali2LightCommand command = 1;
     repeated Uuid targetUuids = 2;
     Dt8Command dt8command = 3;
+  }
+  //发送广播亮度指令
+  message SendBroadcastLevelInstruction{
+    Dali2LightCommand command = 1;
+    Dt8Command dt8command = 2;
+    int32 terminalIndex = 3; //-1 则代表所有
+  }
+  //保存station
+  message SaveStation{
+
+  }
+  //设置系统时间
+  message SetSysTime{
+    int64 timestamp = 1;//如果带值则立即使用时间戳对时
+    bool forceNtp = 2;// 强制立即NTP
+    string newNtpAddress = 3;//如果带值则修改Ntp地址
+    bool setEnableNtp = 4;//是否设置NtpEnable
+    bool enableNtp = 5;//NtpEnable值
   }
 }
 
@@ -181,6 +197,9 @@ message AsyncActionFeedback{
     Blink blink = 3;
     SetShortAddress setShortAddress = 4;
     SendLevelInstruction sendLevelInstruction = 5;
+    SendBroadcastLevelInstruction sendBroadcastLevelInstruction = 6;
+    SaveStation saveStation = 7;
+    SetSysTime setSysTime = 8;
   }
   message Blink{
 
@@ -190,8 +209,17 @@ message AsyncActionFeedback{
   }
   message SendLevelInstruction{
     int32 countOfRoom = 1;
-    int32 countOfDo =2;
+    int32 countOfDo = 2;
     int32 countOfDali2 = 3;
+  }
+  message SendBroadcastLevelInstruction{
+    int32 countOfLights = 1;
+  }
+  message SaveStation{
+
+  }
+  message SetSysTime{
+    int64 currentTime = 1;
   }
 }
 

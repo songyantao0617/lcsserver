@@ -29,6 +29,10 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
         return new ActionWithFeedbackRequestWrapper(headers, new SendLevelInstruction(uuid, command, dt8Command));
     }
 
+    public static ActionWithFeedbackRequestWrapper SendBroadcastLevelInstruction(ProtoHeaders headers, int terminalIndex, Dali2LightCommandModel command, Dt8CommandModel dt8Command) {
+        return new ActionWithFeedbackRequestWrapper(headers, new SendBroadcastLevelInstruction(terminalIndex, command, dt8Command));
+    }
+
     /***************************************************************************/
 
 
@@ -101,6 +105,7 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
         }
     }
 
+    //发送灯具控制命令
     public static class SendLevelInstruction extends Action<LcsProtos.ActionWithFeedbackRequest.SendLevelInstruction> {
         public SendLevelInstruction(UUID[] targetUuids, Dali2LightCommandModel command, Dt8CommandModel dt8Command) {
             this.command = command;
@@ -142,6 +147,138 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
         }
     }
 
+    public static class SendBroadcastLevelInstruction extends Action<LcsProtos.ActionWithFeedbackRequest.SendBroadcastLevelInstruction> {
+        public SendBroadcastLevelInstruction(int terminalIndex, Dali2LightCommandModel command, Dt8CommandModel dt8Command) {
+            this.command = command;
+            this.terminalIndex = terminalIndex;
+            this.dt8Command = dt8Command;
+        }
+
+        public SendBroadcastLevelInstruction(LcsProtos.ActionWithFeedbackRequest.SendBroadcastLevelInstruction pb) {
+            this.command = new Dali2LightCommandModel(pb.getCommand());
+            this.dt8Command = new Dt8CommandModel(pb.getDt8Command());
+            this.terminalIndex = pb.getTerminalIndex();
+        }
+
+        public Dali2LightCommandModel getCommand() {
+            return command;
+        }
+
+
+        public Dt8CommandModel getDt8Command() {
+            return dt8Command;
+        }
+
+
+        final Dali2LightCommandModel command;
+        final Dt8CommandModel dt8Command;
+
+        public int getTerminalIndex() {
+            return terminalIndex;
+        }
+
+        final int terminalIndex;
+
+        @Override
+        LcsProtos.ActionWithFeedbackRequest.SendBroadcastLevelInstruction getPb() {
+            return LcsProtos.ActionWithFeedbackRequest.SendBroadcastLevelInstruction.newBuilder()
+                    .setCommand(command.getPb())
+                    .setDt8Command(dt8Command.getPb())
+                    .setTerminalIndex(this.terminalIndex)
+                    .build();
+        }
+    }
+
+    public static class SaveStation extends Action<LcsProtos.ActionWithFeedbackRequest.SaveStation> {
+        public SaveStation() {
+
+        }
+
+        public SaveStation(LcsProtos.ActionWithFeedbackRequest.SaveStation pb) {
+
+        }
+
+        @Override
+        LcsProtos.ActionWithFeedbackRequest.SaveStation getPb() {
+            return LcsProtos.ActionWithFeedbackRequest.SaveStation.newBuilder()
+                    .build();
+        }
+    }
+
+    public static class SetSysTime extends Action<LcsProtos.ActionWithFeedbackRequest.SetSysTime> {
+        public SetSysTime(long timestamp) {
+            this.timestamp = timestamp;
+            this.forceNtp = false;
+            this.newNtpAddress = "";
+            this.setEnableNtp = false;
+            this.enableNtp = false;
+        }
+
+        //强制NTP刷新
+        public SetSysTime() {
+            this.timestamp = 0;
+            this.forceNtp = true;
+            this.newNtpAddress = "";
+            this.setEnableNtp = false;
+            this.enableNtp = false;
+        }
+
+        //设置NTP地址并刷新
+        public SetSysTime(String newNtpAddress, boolean forceSync, boolean enable) {
+            this.timestamp = 0;
+            this.forceNtp = forceSync;
+            this.newNtpAddress = newNtpAddress;
+            this.setEnableNtp = true;
+            this.enableNtp = enable;
+        }
+
+
+        public long getTimestamp() {
+            return timestamp;
+        }
+
+        public boolean isForceNtp() {
+            return forceNtp;
+        }
+
+        public String getNewNtpAddress() {
+            return newNtpAddress;
+        }
+
+        public boolean isSetEnableNtp() {
+            return setEnableNtp;
+        }
+
+        public boolean isEnableNtp() {
+            return enableNtp;
+        }
+
+        final long timestamp;
+        final boolean forceNtp;
+        final String newNtpAddress;
+        final boolean setEnableNtp;
+        final boolean enableNtp;
+
+        public SetSysTime(LcsProtos.ActionWithFeedbackRequest.SetSysTime pb) {
+            this.timestamp = pb.getTimestamp();
+            this.forceNtp = pb.getForceNtp();
+            this.newNtpAddress = pb.getNewNtpAddress();
+            this.setEnableNtp = pb.getSetEnableNtp();
+            this.enableNtp = pb.getEnableNtp();
+        }
+
+        @Override
+        LcsProtos.ActionWithFeedbackRequest.SetSysTime getPb() {
+            return LcsProtos.ActionWithFeedbackRequest.SetSysTime.newBuilder()
+                    .setTimestamp(timestamp)
+                    .setForceNtp(forceNtp)
+                    .setNewNtpAddress(newNtpAddress)
+                    .setSetEnableNtp(setEnableNtp)
+                    .setEnableNtp(enableNtp)
+                    .build();
+        }
+    }
+
     public Action getAction() {
         return this.action;
     }
@@ -170,6 +307,15 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
             case LcsProtos.ActionWithFeedbackRequest.SENDLEVELINSTRUCTION_FIELD_NUMBER:
                 this.action = new SendLevelInstruction(v.getSendLevelInstruction());
                 break;
+            case LcsProtos.ActionWithFeedbackRequest.SENDBROADCASTLEVELINSTRUCTION_FIELD_NUMBER:
+                this.action = new SendBroadcastLevelInstruction(v.getSendBroadcastLevelInstruction());
+                break;
+            case LcsProtos.ActionWithFeedbackRequest.SAVESTATION_FIELD_NUMBER:
+                this.action = new SaveStation(v.getSaveStation());
+                break;
+            case LcsProtos.ActionWithFeedbackRequest.SETSYSTIME_FIELD_NUMBER:
+                this.action = new SetSysTime(v.getSetSysTime());
+                break;
             default:
                 this.action = null;
                 break;
@@ -193,6 +339,12 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
             builder.setSetShortAddress(((SetShortAddress) this.action).getPb());
         } else if (this.action instanceof SendLevelInstruction) {
             builder.setSendLevelInstruction(((SendLevelInstruction) this.action).getPb());
+        } else if (this.action instanceof SendBroadcastLevelInstruction) {
+            builder.setSendBroadcastLevelInstruction(((SendBroadcastLevelInstruction) this.action).getPb());
+        } else if (this.action instanceof SaveStation) {
+            builder.setSaveStation(((SaveStation) this.action).getPb());
+        }else if(this.action instanceof SetSysTime){
+            builder.setSetSysTime(((SetSysTime)this.action).getPb());
         }
 
         return builder;

@@ -1,6 +1,8 @@
 LcsServer:
   name: "LCS-1"
   ver: "0.1"
+  timeServer: true
+
 
 spring:
   rabbitmq:

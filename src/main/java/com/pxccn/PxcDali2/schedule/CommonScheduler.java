@@ -1,27 +1,26 @@
 package com.pxccn.PxcDali2.schedule;
 
-import com.google.common.util.concurrent.FutureCallback;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.MoreExecutors;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.DetailInfoRequestWrapper;
-import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
-import com.pxccn.PxcDali2.Util;
 import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
-import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
 import com.pxccn.PxcDali2.server.service.rpc.impl.CabinetRequestServiceImpl;
 import com.pxccn.PxcDali2.server.space.TopSpace;
+import com.pxccn.PxcDali2.server.space.cabinets.Cabinet;
+import com.pxccn.PxcDali2.server.space.cabinets.CabinetsManager;
 import lombok.extern.slf4j.Slf4j;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
+
+import java.util.Arrays;
 
 @Configuration      //1.主要用于标记配置类，兼备Component的效果。
 @EnableScheduling   // 2.开启定时任务
 @Slf4j
 public class CommonScheduler {
 
+    @Autowired
+    CabinetsManager cabinetsManager;
     @Autowired
     UaAlarmEventService uaAlarmEventService;
     @Autowired
@@ -30,10 +29,24 @@ public class CommonScheduler {
     @Autowired
     CabinetRequestServiceImpl cabinetRequestService;
 
+    @Value("${LcsServer.timeServer:false}")
+    boolean isTimeServer;
+
+    @Scheduled(fixedDelay = 3600 * 2)
+    private void onPer2Hour() {
+        log.trace("onPer2Hour");
+        if(isTimeServer){
+            Arrays.stream(cabinetsManager.getAllCabinet())
+                    .filter(Cabinet::isAlive)
+                    .forEach(c->c.setCabinetSystemTime(System.currentTimeMillis()));
+        }
+
+    }
+
     @Scheduled(cron = "0/2 * * * * ?")
     private void cabtest() {
         if (topSpace.isReady()) {
-            uaAlarmEventService.sendBasicEvent(null,"11111",1);
+            uaAlarmEventService.sendBasicEvent(null, "11111", 1);
 
 //            Futures.addCallback(cabinetRequestService.asyncSend(RpcTarget.CommonToAllCabinet, new DetailInfoRequestWrapper(Util.NewCommonHeaderForClient(), true, null)), new FutureCallback<ResponseWrapper>() {
 //                @Override

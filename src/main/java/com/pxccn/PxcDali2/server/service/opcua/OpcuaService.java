@@ -76,6 +76,7 @@ public class OpcuaService {
 
     @PostConstruct
     public boolean initialize() {
+        DateTime.setUseLocalTimeInToString(true);
         try {
             var server = new UaServer();
             server.setEnableIPv6(false);

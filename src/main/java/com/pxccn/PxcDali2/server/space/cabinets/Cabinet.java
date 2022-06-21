@@ -32,6 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.helpers.MessageFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ConfigurableApplicationContext;
 
 import javax.annotation.PostConstruct;
@@ -41,6 +42,9 @@ import java.util.UUID;
 @FwComponentAnnotation
 @Slf4j
 public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
+
+    @Value("${LcsServer.timeServer:false}")
+    boolean isTimeServer;
     @Autowired
     UaAlarmEventService uaAlarmEventService;
     @Autowired
@@ -67,6 +71,10 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
     FwProperty<DateTime> LastConnectionEstablishTimeStamp;
     FwProperty<DateTime> LastInfosUploadedTimestamp;
 //    FwProperty<DateTime> LastInfosUploadedTimestamp2;
+
+    public boolean isAlive() {
+        return this.IsAlive.get();
+    }
 
     @PostConstruct
     public void post() {
@@ -115,6 +123,9 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
 
     public void cabinetDataInit() {
         log.info("同步控制柜<{}>数据", this.CabinetId.get());
+        if (this.isTimeServer) {
+            this.setCabinetSystemTime(System.currentTimeMillis());//同步系统时间
+        }
         this.AskToUpdateLightsAndRoomInfo();//要求控制器上传灯具和房间的具体信息
         this.purgeCacheForUpdateAllRealtimeStatus();//要求控制器更新所有灯具亮度
     }
@@ -126,6 +137,9 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
             if (IsAlive.get()) {
                 String msg = MessageFormatter.arrayFormat("控制柜<{}>上线！", new Object[]{this.Name.get()}).getMessage();
                 log.info(msg);
+                if (this.isTimeServer) {
+                    this.setCabinetSystemTime(System.currentTimeMillis());//同步系统时间
+                }
                 uaAlarmEventService.sendBasicEvent(this, msg, 1);
                 this.LastConnectionEstablishTimeStamp.set(DateTime.currentTime());
                 cabinetDataInit();
@@ -139,6 +153,109 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         } else if (property == this.Name) {
             this.getNode().setDisplayName(new LocalizedText(this.Name.get()));
         }
+    }
+
+    public void onSendGlobalCtlCommand(Dali2LightCommandModel dali2LightCommandModel) {
+        log.trace("onSendGlobalCtlCommand({}): dali2LightCommandModel={}", this.Name.get(), dali2LightCommandModel);
+        Futures.addCallback(this.sendBroadcastCommand(-1, dali2LightCommandModel), new FutureCallback<AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction>() {
+            @Override
+            public void onSuccess(AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction result) {
+                log.info("控制柜<{}>执行广播命令（{}）成功,灯具数量：{}", Name.get(), dali2LightCommandModel, result.getCountOfLights());
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.error("控制柜<{}>无法执行广播命令：{}", Name.get(), t.getMessage());
+            }
+        }, MoreExecutors.directExecutor());
+    }
+
+    public ListenableFuture<AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction> sendBroadcastCommand(int terminalIndex, Dali2LightCommandModel dali2LightCommandModel) {
+        log.trace("sendBroadcastCommand({}): terminalIndex={},dali2LightCommandModel={}", this.Name.get(), terminalIndex, dali2LightCommandModel);
+        SettableFuture<AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction> future = SettableFuture.create();
+        var f = this.cabinetRequestService.asyncSendWithAsyncFeedback(
+                RpcTarget.ToCabinet(this.CabinetId.get()),
+                ActionWithFeedbackRequestWrapper.SendBroadcastLevelInstruction(
+                        Util.NewCommonHeaderForClient(),
+                        terminalIndex,
+                        dali2LightCommandModel,
+                        new Dt8CommandModel(Dt8CommandModel.Instructions.None, 0, 0)),
+                (ResponseWrapper) -> {
+                    log.trace("控制柜收到灯具广播命令->{}", dali2LightCommandModel);
+                }, 20000);
+        Futures.addCallback(f, new FutureCallback<AsyncActionFeedbackWrapper>() {
+            @Override
+            public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
+                if (result == null || result.getFeedback() == null) {
+                    log.error("内部错误,未返回有效内容");
+                    return;
+                }
+                if (result.getFeedback() instanceof AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction) {
+                    var cnt = ((AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction) result.getFeedback()).getCountOfLights();
+                    log.debug("执行广播命令成功，涉及数量：{}", cnt);
+                    future.set((AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction) result.getFeedback());
+                }
+                future.setException(new IllegalStateException("控制器未返回有效数据"));
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.error("执行命令失败：{}", t.getMessage());
+                future.setException(t);
+            }
+        }, MoreExecutors.directExecutor());
+        return future;
+    }
+
+    public ListenableFuture<AsyncActionFeedbackWrapper.SetSysTime> setCabinetSystemTime(long timestamp) {
+        log.trace("setSystemTime({}): timestamp={}", Name.get(), timestamp);
+        SettableFuture<AsyncActionFeedbackWrapper.SetSysTime> future = SettableFuture.create();
+        var f = this.cabinetRequestService.asyncSendWithAsyncFeedback(
+                RpcTarget.ToCabinet(this.CabinetId.get()),
+                new ActionWithFeedbackRequestWrapper(
+                        Util.NewCommonHeaderForClient(),
+                        new ActionWithFeedbackRequestWrapper.SetSysTime(timestamp)
+                ), (Resp) -> {
+                    log.debug("控制柜<{}>收到设置时间命令", Name.get());
+                }, 20000);
+        Futures.addCallback(f, new FutureCallback<AsyncActionFeedbackWrapper>() {
+            @Override
+            public void onSuccess(AsyncActionFeedbackWrapper result) {
+                log.info("控制柜<{}>完成时间同步命令，当前控制柜本地时间:{}", Name.get(), DateTime.fromMillis(result.getTimestamp()));
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.error("控制柜<{}>保存任务失败：{}", Name.get(), t.getMessage());
+            }
+        }, MoreExecutors.directExecutor());
+        return future;
+    }
+
+
+    public ListenableFuture<AsyncActionFeedbackWrapper.SaveStation> saveStation() {
+        log.trace("saveStation({})", Name.get());
+        SettableFuture<AsyncActionFeedbackWrapper.SaveStation> future = SettableFuture.create();
+        var f = this.cabinetRequestService.asyncSendWithAsyncFeedback(
+                RpcTarget.ToCabinet(this.CabinetId.get()),
+                new ActionWithFeedbackRequestWrapper(
+                        Util.NewCommonHeaderForClient(),
+                        new ActionWithFeedbackRequestWrapper.SaveStation()
+                ), (Resp) -> {
+                    log.debug("控制柜<{}>收到保存命令", Name.get());
+                }, 20000);
+        Futures.addCallback(f, new FutureCallback<AsyncActionFeedbackWrapper>() {
+            @Override
+            public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
+                log.info("控制柜<{}>成功完成保存任务", Name.get());
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.error("控制柜<{}>保存任务失败：{}", Name.get(), t.getMessage());
+            }
+        }, MoreExecutors.directExecutor());
+        return future;
     }
 
     public ListenableFuture<AsyncActionFeedbackWrapper.SendLevelInstruction> sendCtlCommand(
@@ -156,7 +273,7 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                         resource,
                         dali2LightCommandModel, dt8CommandModel),
                 (ResponseWrapper) -> {
-                    log.trace("控制柜收到灯具命令->{},{}", dali2LightCommandModel, dt8CommandModel);
+                    log.debug("控制柜<{}>收到灯具命令->{},{}", Name.get(), dali2LightCommandModel, dt8CommandModel);
                 }, 20000);
         Futures.addCallback(f, new FutureCallback<>() {
             @Override
@@ -170,9 +287,9 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                     var doLight = ((AsyncActionFeedbackWrapper.SendLevelInstruction) result.getFeedback()).getCountOfDo();
                     var room = ((AsyncActionFeedbackWrapper.SendLevelInstruction) result.getFeedback()).getCountOfRoom();
                     if (dali2Light > 0 || doLight > 0 || room > 0)
-                        log.trace("执行灯具命令成功,dali2Light={},doLight={},room={}", dali2Light, doLight, room);
+                        log.debug("执行灯具命令成功,dali2Light={},doLight={},room={}", dali2Light, doLight, room);
                     else
-                        log.trace("没有命中任何资源！");
+                        log.debug("没有命中任何资源！");
                     future.set(((AsyncActionFeedbackWrapper.SendLevelInstruction) result.getFeedback()));
                 }
             }
@@ -292,8 +409,14 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         }
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
+            syncTime(),
+            saveStation(),
             fetchCabinetDetailsNow(),
             fetchRoomAndLightDetailsNow(),
+            sendGlobalCtlCommand(new UaHelperUtil.MethodArgument[]{
+                    new UaHelperUtil.MethodArgument("action", Dali2LightCommandModel.Instructions.class),
+                    new UaHelperUtil.MethodArgument("parameter", Identifiers.Int32),
+            }, null),
             setPollManager(new UaHelperUtil.MethodArgument[]{
                     new UaHelperUtil.MethodArgument("setNormalDelay", Identifiers.Boolean),
                     new UaHelperUtil.MethodArgument("normalDelay", Identifiers.Int32),
@@ -357,7 +480,18 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
             } else if (declared == methods.fetchRoomAndLightDetailsNow) {
                 this.comp.AskToUpdateLightsAndRoomInfo();
                 return null;
+            } else if (declared == methods.sendGlobalCtlCommand) {
+                var Cmd103 = new Dali2LightCommandModel(UaHelperUtil.getEnum(Dali2LightCommandModel.Instructions.class, input[0].intValue()), input[1].intValue());
+                this.comp.onSendGlobalCtlCommand(Cmd103);
+                return null;
+            } else if (declared == methods.syncTime) {
+                this.comp.setCabinetSystemTime(System.currentTimeMillis());
+                return null;
+            } else if (declared == methods.saveStation) {
+                this.comp.saveStation();
+                return null;
             }
+
             return super.onMethodCall(declared, input);
         }
     }

@@ -116,6 +116,71 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
         }
     }
 
+    public static class SendBroadcastLevelInstruction extends ActionFeedBack<LcsProtos.AsyncActionFeedback.SendBroadcastLevelInstruction> {
+
+
+
+        public int getCountOfLights() {
+            return countOfLights;
+        }
+
+        final int countOfLights;
+
+        public SendBroadcastLevelInstruction(int countOfLights) {
+            this.countOfLights = countOfLights;
+        }
+
+        public SendBroadcastLevelInstruction(LcsProtos.AsyncActionFeedback.SendBroadcastLevelInstruction pb) {
+            this.countOfLights = pb.getCountOfLights();
+        }
+
+        @Override
+        LcsProtos.AsyncActionFeedback.SendBroadcastLevelInstruction getPb() {
+            return LcsProtos.AsyncActionFeedback.SendBroadcastLevelInstruction.newBuilder()
+                    .setCountOfLights(this.countOfLights)
+                    .build();
+        }
+    }
+
+    public static class SaveStation extends ActionFeedBack<LcsProtos.AsyncActionFeedback.SaveStation> {
+
+
+        public SaveStation() {
+
+        }
+
+
+        public SaveStation(LcsProtos.AsyncActionFeedback.SaveStation pb) {
+
+        }
+
+        @Override
+        LcsProtos.AsyncActionFeedback.SaveStation getPb() {
+            return LcsProtos.AsyncActionFeedback.SaveStation.newBuilder()
+
+                    .build();
+        }
+    }
+    public static class SetSysTime extends ActionFeedBack<LcsProtos.AsyncActionFeedback.SetSysTime> {
+
+
+        public SetSysTime(long currentTime) {
+            this.currentTime = currentTime;
+        }
+        final long currentTime;
+
+        public SetSysTime(LcsProtos.AsyncActionFeedback.SetSysTime pb) {
+            this.currentTime = pb.getCurrentTime();
+        }
+
+        @Override
+        LcsProtos.AsyncActionFeedback.SetSysTime getPb() {
+            return LcsProtos.AsyncActionFeedback.SetSysTime.newBuilder()
+                    .setCurrentTime(this.currentTime)
+                    .build();
+        }
+    }
+
     //反向构造
     public AsyncActionFeedbackWrapper(LcsProtos.ToServerMessage pb) throws InvalidProtocolBufferException {
         super(pb);
@@ -131,6 +196,15 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
                 break;
             case LcsProtos.AsyncActionFeedback.SENDLEVELINSTRUCTION_FIELD_NUMBER:
                 feedBack = new SendLevelInstruction(v.getSendLevelInstruction());
+                break;
+            case LcsProtos.AsyncActionFeedback.SENDBROADCASTLEVELINSTRUCTION_FIELD_NUMBER:
+                feedBack = new SendBroadcastLevelInstruction(v.getSendBroadcastLevelInstruction());
+                break;
+            case LcsProtos.AsyncActionFeedback.SAVESTATION_FIELD_NUMBER:
+                feedBack = new SaveStation(v.getSaveStation());
+                break;
+            case LcsProtos.AsyncActionFeedback.SETSYSTIME_FIELD_NUMBER:
+                feedBack = new SetSysTime(v.getSetSysTime());
                 break;
             default:
                 feedBack = null;
@@ -175,6 +249,12 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
             builder.setSetShortAddress(((SetShortAddress) this.feedBack).getPb());
         }else if(this.feedBack instanceof SendLevelInstruction){
             builder.setSendLevelInstruction(((SendLevelInstruction) this.feedBack).getPb());
+        }else if(this.feedBack instanceof SendBroadcastLevelInstruction){
+            builder.setSendBroadcastLevelInstruction(((SendBroadcastLevelInstruction)this.feedBack).getPb());
+        }else if(this.feedBack instanceof SaveStation){
+            builder.setSaveStation(((SaveStation)this.feedBack).getPb());
+        }else if(this.feedBack instanceof SetSysTime){
+            builder.setSetSysTime(((SetSysTime)this.feedBack).getPb());
         }
 
 

@@ -3,7 +3,6 @@ package com.pxccn.PxcDali2.schedule;
 import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.rpc.impl.CabinetRequestServiceImpl;
 import com.pxccn.PxcDali2.server.space.TopSpace;
-import com.pxccn.PxcDali2.server.space.cabinets.Cabinet;
 import com.pxccn.PxcDali2.server.space.cabinets.CabinetsManager;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -32,21 +31,21 @@ public class CommonScheduler {
     @Value("${LcsServer.timeServer:false}")
     boolean isTimeServer;
 
-    @Scheduled(fixedDelay = 3600 * 2)
-    private void onPer2Hour() {
-        log.trace("onPer2Hour");
-        if(isTimeServer){
-            Arrays.stream(cabinetsManager.getAllCabinet())
-                    .filter(Cabinet::isAlive)
-                    .forEach(c->c.setCabinetSystemTime(System.currentTimeMillis()));
+    @Scheduled(fixedDelay = 3600 * 1 * 1000)
+    private void onPer1Hour() {
+        log.trace("onPer1Hour");
+        if (isTimeServer) {
+            Arrays.stream(cabinetsManager.getAllOnlineCabinet()).forEach(c -> {
+                c.setCabinetSystemTime(System.currentTimeMillis());
+            });
         }
-
     }
+
 
     @Scheduled(cron = "0/2 * * * * ?")
     private void cabtest() {
         if (topSpace.isReady()) {
-            uaAlarmEventService.sendBasicEvent(null, "11111", 1);
+            uaAlarmEventService.sendBasicUaEvent(null, "11111", 1);
 
 //            Futures.addCallback(cabinetRequestService.asyncSend(RpcTarget.CommonToAllCabinet, new DetailInfoRequestWrapper(Util.NewCommonHeaderForClient(), true, null)), new FutureCallback<ResponseWrapper>() {
 //                @Override
@@ -86,10 +85,5 @@ public class CommonScheduler {
     }
 
 
-    @Scheduled(cron = "0/5 * * * * ?")
-    private void checkCabinetAlive() {
-        if (topSpace.isReady()) {
-            topSpace.getCabinetsManager().doCheckCabinetAlive();
-        }
-    }
+
 }

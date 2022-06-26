@@ -40,10 +40,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.util.concurrent.ListenableFutureCallback;
 
 import javax.annotation.PostConstruct;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Date;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
 
@@ -74,6 +71,7 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
 //        });
     }
 
+    @Deprecated
     public ResponseWrapper syncSend(RpcTarget target, ProtoToPlcQueueMsg request) throws InvalidProtocolBufferException, BadMessageException, OperationFailure {
         var reply = (byte[]) rabbitTemplate.convertSendAndReceive(target.getExchange(), target.getRoutingKey(), request.getData());
         ProtoToServerQueueMsg m = ProtoToServerQueueMsg.FromData(reply);
@@ -113,13 +111,18 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
                         } catch (Exception e) {
                             onFailure(e);
                         }
+                        finally {
+                            future.cancel(false);
+                        }
                     }
 
                     @Override
                     public void onFailure(Throwable ex) {
                         gFuture.setException(ex);
+                        future.cancel(false);
                     }
                 });
+
         return gFuture;
     }
 
@@ -151,6 +154,16 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
         }), executor);
     }
 
+    public ListenableFuture<Object> invokeMethodAsync(RpcTarget target, UUID resource,String slotPath, String methodName, InvokeParam... params) {
+        var model = NiagaraOperateRequestModel.INVOKE_METHOD(resource,slotPath, methodName);
+        if (params != null) {
+            Arrays.stream(params).forEach(p -> {
+                model.getMethodParameter().add(p.getCls(), p.getValue());
+            });
+        }
+        return this.invokeMethodAsync(target,model);
+    }
+
     public ListenableFuture<Object> invokeMethodAsync(RpcTarget target, String bComponentOrd, String methodName, InvokeParam... params) {
         var model = NiagaraOperateRequestModel.INVOKE_METHOD(bComponentOrd, methodName);
         if (params != null) {
@@ -158,8 +171,12 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
                 model.getMethodParameter().add(p.getCls(), p.getValue());
             });
         }
+        return this.invokeMethodAsync(target,model);
+    }
+
+    private ListenableFuture<Object> invokeMethodAsync(RpcTarget target,NiagaraOperateRequestModel model){
         if (log.isTraceEnabled())
-            log.trace("发起异步函数调用,{},函数名：{}", target.toFriendlyString(), methodName);
+            log.trace("发起异步函数调用,{},函数名：{}", target.toFriendlyString(), model.getTargetValue());
 
         return Futures.transform(this.asyncSend(
                 target
@@ -176,14 +193,12 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
             var b = a.getResponseList().get(0);
             if (b.isSuccess()) {
                 if (log.isTraceEnabled())
-                    log.trace("异步函数调用成功,函数名：{}", methodName);
+                    log.trace("异步函数调用成功,函数名：{}", model.getTargetValue());
                 return b.getReturnValue();
             } else {
                 throw new IllegalStateException(b.getExceptionReason());
             }
         }, executor);
-
-
     }
 
     public ListenableFuture<String> readPropertyValueAsync(RpcTarget target, UUID resourceUuid, String slotOrd) {
@@ -267,6 +282,7 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
                                                                                    @Nullable Consumer<ResponseWrapper> sendSuccess,
                                                                                    int timeout
     ) {
+        log.trace("asyncSendWithAsyncFeedback: target={},request={},timeout={}",target.toFriendlyString(),request.getAction().getClass().getSimpleName(),timeout);
         if (timeout < 1000) {
             timeout = 300000;
         }
@@ -289,7 +305,7 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
                 , new FutureCallback<>() {
                     @Override
                     public void onSuccess(@Nullable ResponseWrapper result) {
-                        log.debug("<{}> 收到请求", target.toFriendlyString());
+                        log.debug("<{}> 收到请求<{}>", target.toFriendlyString(),request.getAction().getClass().getSimpleName());
                         if (sendSuccess != null) {
                             sendSuccess.accept(result);
                         }
@@ -297,17 +313,19 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
                     @Override
                     public void onFailure(Throwable t) {
                         if (t instanceof AmqpMessageReturnedException) {
-                            log.error("<{}>投递请求消息被打回，因为目标控制器不在线",target.toFriendlyString());
+                            log.error("<{}>投递请求<{}>消息被打回，因为目标控制器不在线",target.toFriendlyString(),request.getAction().getClass().getSimpleName());
                         } else if (t instanceof AmqpReplyTimeoutException) {
-                            log.error("<{}>超时！未及时收到控制器返回！", target.toFriendlyString());
+                            log.error("<{}>投递请求<{}>超时！未及时收到控制器返回！", target.toFriendlyString(),request.getAction().getClass().getSimpleName());
                         }else{
-                            log.error("<{}>投递请求失败:{}",target.toFriendlyString(), t.getMessage());
+                            log.error("<{}>投递请求<{}>失败:{}",target.toFriendlyString(), t.getMessage(),request.getAction().getClass().getSimpleName());
                         }
                         scheduleFuture.cancel(true);
                         pending.remove(request.getRequestId());
                         feedbackFuture.setException(t);
                     }
                 }, executor);
+
+
         return feedbackFuture;
     }
 

@@ -279,6 +279,29 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
         }
     }
 
+    public static class DbSync extends Action<LcsProtos.ActionWithFeedbackRequest.DbSync> {
+        public DbSync(int flag) {
+            this.flag = flag;
+        }
+
+        public DbSync(LcsProtos.ActionWithFeedbackRequest.DbSync pb) {
+            this.flag = pb.getFlag();
+        }
+
+        public int getFlag() {
+            return flag;
+        }
+
+        final int flag;
+
+        @Override
+        LcsProtos.ActionWithFeedbackRequest.DbSync getPb() {
+            return LcsProtos.ActionWithFeedbackRequest.DbSync.newBuilder()
+                    .setFlag(this.flag)
+                    .build();
+        }
+    }
+
     public Action getAction() {
         return this.action;
     }
@@ -316,6 +339,9 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
             case LcsProtos.ActionWithFeedbackRequest.SETSYSTIME_FIELD_NUMBER:
                 this.action = new SetSysTime(v.getSetSysTime());
                 break;
+            case LcsProtos.ActionWithFeedbackRequest.DBSYNC_FIELD_NUMBER:
+                this.action = new DbSync(v.getDbSync());
+                break;
             default:
                 this.action = null;
                 break;
@@ -343,8 +369,10 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
             builder.setSendBroadcastLevelInstruction(((SendBroadcastLevelInstruction) this.action).getPb());
         } else if (this.action instanceof SaveStation) {
             builder.setSaveStation(((SaveStation) this.action).getPb());
-        }else if(this.action instanceof SetSysTime){
-            builder.setSetSysTime(((SetSysTime)this.action).getPb());
+        } else if (this.action instanceof SetSysTime) {
+            builder.setSetSysTime(((SetSysTime) this.action).getPb());
+        } else if (this.action instanceof DbSync) {
+            builder.setDbSync(((DbSync) this.action).getPb());
         }
 
         return builder;

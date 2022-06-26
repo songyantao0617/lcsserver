@@ -20,7 +20,9 @@ public class UaAlarmEventService {
     @Autowired
     TopSpace topSpace;
 
-    public void sendBasicEvent(FwUaComponent source, String message, int severity) {
+    public void sendBasicUaEvent(FwUaComponent source, String message, int severity) {
+        log.trace("sendBasicEvent: source={},message={},severity={}",source,message,severity);
+
         if (source == null) {
             source = topSpace.getCockpit();
         }
@@ -32,9 +34,6 @@ public class UaAlarmEventService {
         if (node == null) {
             log.error("无法获取{}对象Ua节点,事件发送失败:{}", source.getName(), message);
             return;
-        }
-        if (log.isTraceEnabled()) {
-            log.trace("发送UA基本事件 source:{},msg:{},severity:{}", source.getNode().toString(), message, severity);
         }
         executorService.execute(() -> {
             try {

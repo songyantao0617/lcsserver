@@ -5,6 +5,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.prosysopc.ua.StatusException;
+import com.prosysopc.ua.stack.builtintypes.LocalizedText;
 import com.prosysopc.ua.stack.builtintypes.Variant;
 import com.prosysopc.ua.stack.core.Identifiers;
 import com.prosysopc.ua.stack.core.StatusCodes;
@@ -16,6 +17,8 @@ import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.ActionWithFeedbackRequestWra
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.Util;
 import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
+import com.pxccn.PxcDali2.server.framework.FwContext;
+import com.pxccn.PxcDali2.server.framework.FwPropFlag;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
@@ -36,18 +39,41 @@ public class Dali2Light extends LightBase {
     FwProperty<String> lightType;
 
 
+    @Override
+    public double getBrightness() {
+        return this.subscribe_level.get();
+    }
 
+    @Override
+    public String getErrorMsg() {
+        return this.subscribe_fault.get();
+    }
 
     @PostConstruct
     public void post() {
         super.post();
         lightType = addProperty("DALI2", "lightType");
-        subscribe_level = addProperty(0.0, "subscribe_level");
+        subscribe_level = addProperty(0.0, "subscribe_level", FwPropFlag.READ_WRITE);
         subscribe_fault = addProperty("", "subscribe_fault");
 
     }
 
+    public void onChanged(FwProperty property, FwContext context)  {
+        super.onChanged(property, context);
+        if(context == FwContext.BY_OPCUA && property == this.subscribe_level){
+            log.trace("通过节点修改灯具<{}>亮度值：{}",this.lightName.get(),this.subscribe_level.get());
+            var value = this.subscribe_level.get();
+            if(value<0 || value>100){
+                throw new RuntimeException("",new StatusException(StatusCodes.Bad_OutOfRange));
+            }
+            this.sendCtlCommand(new Dali2LightCommandModel(Dali2LightCommandModel.Instructions.DirectPwr_percent,value.intValue()));
+
+        }
+    }
+
+
     public void onNewStatus(Dali2LightRealtimeStatusModel lrs) {
+        log.debug("onNewStatus<{}> :{}",lightName.get(),lrs);
         super.onNewStatus(lrs);
         this.subscribe_level.set(lrs.brightness);
         this.subscribe_fault.set(lrs.getErrorMessage() != null ? lrs.getErrorMessage() : "");
@@ -90,8 +116,6 @@ public class Dali2Light extends LightBase {
             }
         }, MoreExecutors.directExecutor());
     }
-
-
 
 
     protected LCS_LightBaseNode createUaNode() {

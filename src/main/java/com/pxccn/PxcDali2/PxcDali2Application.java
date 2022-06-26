@@ -3,9 +3,10 @@ package com.pxccn.PxcDali2;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
-
+import org.mybatis.spring.annotation.MapperScan;
 @SpringBootApplication
 @EnableCaching
+@MapperScan({"com.pxccn.PxcDali2.server.mapper","com.pxccn.PxcDali2.server.mapperManual"})
 public class PxcDali2Application {
 
     public static void main(String[] args) {

@@ -1,7 +1,6 @@
 package com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp;
 
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.Util;
@@ -94,7 +93,7 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
         final int countOfDo;
         final int countOfDali2;
 
-        public SendLevelInstruction(int countOfRoom,int countOfDo,int countOfDali2) {
+        public SendLevelInstruction(int countOfRoom, int countOfDo, int countOfDali2) {
             this.countOfDali2 = countOfDali2;
             this.countOfDo = countOfDo;
             this.countOfRoom = countOfRoom;
@@ -117,7 +116,6 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
     }
 
     public static class SendBroadcastLevelInstruction extends ActionFeedBack<LcsProtos.AsyncActionFeedback.SendBroadcastLevelInstruction> {
-
 
 
         public int getCountOfLights() {
@@ -161,12 +159,14 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
                     .build();
         }
     }
+
     public static class SetSysTime extends ActionFeedBack<LcsProtos.AsyncActionFeedback.SetSysTime> {
 
 
         public SetSysTime(long currentTime) {
             this.currentTime = currentTime;
         }
+
         final long currentTime;
 
         public SetSysTime(LcsProtos.AsyncActionFeedback.SetSysTime pb) {
@@ -177,6 +177,30 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
         LcsProtos.AsyncActionFeedback.SetSysTime getPb() {
             return LcsProtos.AsyncActionFeedback.SetSysTime.newBuilder()
                     .setCurrentTime(this.currentTime)
+                    .build();
+        }
+    }
+
+    public static class DbSync extends ActionFeedBack<LcsProtos.AsyncActionFeedback.DbSync> {
+
+        public DbSync(String message) {
+            this.msg = message;
+        }
+
+        public String getMsg() {
+            return msg;
+        }
+
+        final String msg;
+
+        public DbSync(LcsProtos.AsyncActionFeedback.DbSync pb) {
+            this.msg = pb.getMessage();
+        }
+
+        @Override
+        LcsProtos.AsyncActionFeedback.DbSync getPb() {
+            return LcsProtos.AsyncActionFeedback.DbSync.newBuilder()
+                    .setMessage(this.msg)
                     .build();
         }
     }
@@ -205,6 +229,9 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
                 break;
             case LcsProtos.AsyncActionFeedback.SETSYSTIME_FIELD_NUMBER:
                 feedBack = new SetSysTime(v.getSetSysTime());
+                break;
+            case LcsProtos.AsyncActionFeedback.DBSYNC_FIELD_NUMBER:
+                feedBack = new DbSync(v.getDbSync());
                 break;
             default:
                 feedBack = null;
@@ -247,17 +274,17 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
             builder.setBlink(((Blink) this.feedBack).getPb());
         } else if (this.feedBack instanceof SetShortAddress) {
             builder.setSetShortAddress(((SetShortAddress) this.feedBack).getPb());
-        }else if(this.feedBack instanceof SendLevelInstruction){
+        } else if (this.feedBack instanceof SendLevelInstruction) {
             builder.setSendLevelInstruction(((SendLevelInstruction) this.feedBack).getPb());
-        }else if(this.feedBack instanceof SendBroadcastLevelInstruction){
-            builder.setSendBroadcastLevelInstruction(((SendBroadcastLevelInstruction)this.feedBack).getPb());
-        }else if(this.feedBack instanceof SaveStation){
-            builder.setSaveStation(((SaveStation)this.feedBack).getPb());
-        }else if(this.feedBack instanceof SetSysTime){
-            builder.setSetSysTime(((SetSysTime)this.feedBack).getPb());
+        } else if (this.feedBack instanceof SendBroadcastLevelInstruction) {
+            builder.setSendBroadcastLevelInstruction(((SendBroadcastLevelInstruction) this.feedBack).getPb());
+        } else if (this.feedBack instanceof SaveStation) {
+            builder.setSaveStation(((SaveStation) this.feedBack).getPb());
+        } else if (this.feedBack instanceof SetSysTime) {
+            builder.setSetSysTime(((SetSysTime) this.feedBack).getPb());
+        }else if(this.feedBack instanceof DbSync){
+            builder.setDbSync(((DbSync)this.feedBack).getPb());
         }
-
-
         return builder;
     }
 }

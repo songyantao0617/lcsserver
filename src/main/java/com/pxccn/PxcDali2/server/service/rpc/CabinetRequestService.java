@@ -25,6 +25,7 @@ public interface CabinetRequestService {
      * @throws BadMessageException
      * @throws OperationFailure
      */
+    @Deprecated
     ResponseWrapper syncSend(RpcTarget target, ProtoToPlcQueueMsg request) throws InvalidProtocolBufferException, BadMessageException, OperationFailure;
 
     /**
@@ -47,6 +48,7 @@ public interface CabinetRequestService {
 
     ListenableFuture<Object> invokeMethodAsync(RpcTarget target, String bComponentOrd, String methodName, InvokeParam... params);
 
+    ListenableFuture<Object> invokeMethodAsync(RpcTarget target, UUID resource,String slotPath, String methodName, InvokeParam... params);
     /**
      * 异步读取 常规资源的 Property
      *

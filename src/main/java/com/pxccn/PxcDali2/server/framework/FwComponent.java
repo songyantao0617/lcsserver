@@ -1,5 +1,6 @@
 package com.pxccn.PxcDali2.server.framework;
 
+import com.prosysopc.ua.StatusException;
 import com.pxccn.PxcDali2.common.ArrayUtil;
 import com.pxccn.PxcDali2.server.framework.Exception.FwAlreadyStoppedException;
 import com.pxccn.PxcDali2.server.framework.Exception.FwRuntimeException;
@@ -86,7 +87,7 @@ public abstract class FwComponent extends FwObject implements IFwCompLifecycle {
         }
     }
 
-    public void onChanged(FwProperty property, FwContext context) {
+    public void onChanged(FwProperty property, FwContext context)  {
 
     }
 

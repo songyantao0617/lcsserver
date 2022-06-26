@@ -3,7 +3,12 @@ package com.pxccn.PxcDali2.server.space.rooms;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
+import com.prosysopc.ua.stack.builtintypes.Variant;
+import com.prosysopc.ua.stack.core.Identifiers;
+import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
+import com.pxccn.PxcDali2.MqSharePack.model.Dt8CommandModel;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.DetailInfoRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
 import com.pxccn.PxcDali2.Util;
@@ -15,6 +20,7 @@ import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
 import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
+import com.pxccn.PxcDali2.server.space.v3Rooms.V3RoomsManager;
 import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,29 +43,32 @@ public class RoomsManager extends FwUaComponent<RoomsManager.RoomsManagerNode> {
         var cabinetId = message.getCabinetId();
         switch (message.getEvent()) {
             //TODO 暂时忽略房间创建
-//            case RoomAdded:
-//                log.debug("房间<{}>创建", uid);
-//                this.AskToUpdateRoomsInfo(Collections.singletonList(uid), cabinetId);
-//                break;
-//            case RoomRemoved:
-//                log.debug("房间<{}>被移除", uid);
-//                this.removeProperty(uid.toString());
-//                break;
-//            case RoomInfoChange:
-//                log.debug("房间<{}>信息变更", uid);
-//                this.AskToUpdateRoomsInfo(Collections.singletonList(uid), cabinetId);
-//                break;
+            case RoomAdded:
+                log.debug("房间<{}>创建", uid);
+                this.AskToUpdateRoomsInfo(Collections.singletonList(uid), cabinetId);
+                break;
+            case RoomRemoved:
+                log.debug("房间<{}>被移除", uid);
+                this.removeProperty(uid.toString());
+                break;
+            case RoomInfoChange:
+                log.debug("房间<{}>信息变更", uid);
+                this.AskToUpdateRoomsInfo(Collections.singletonList(uid), cabinetId);
+                break;
         }
     }
 
     @EventListener
     public void onRoomsDetailUploadEvent(RoomsDetailUploadEvent event) {
-        //TODO 暂时忽略房间创建
-//        int cabinetId = event.getMessage().getCabinetId();
-//        event.getMessage().getRoomDetailModels().forEach(model -> {
-//            var room = this.GetOrCreateRoom(model.uuid, cabinetId);
-//            room.onDetailUpload(model);
-//        });
+        //只关心Local房间
+        int cabinetId = event.getMessage().getCabinetId();
+        event.getMessage().getRoomDetailModels()
+                .stream()
+                .filter(i->!i.isDbBased())//只关心Local房间
+                .forEach(model -> {
+            var room = this.GetOrCreateRoom(model.uuid, cabinetId);
+            room.onDetailUpload(model);
+        });
     }
 
     public void AskToUpdateRoomsInfo(List<UUID> roomsUuids, int cabinetId) {
@@ -151,14 +160,45 @@ public class RoomsManager extends FwUaComponent<RoomsManager.RoomsManagerNode> {
     }
 
     protected static class RoomsManagerNode extends LCS_ComponentFastObjectNode {
-
+        RoomsManager comp;
         protected RoomsManagerNode(RoomsManager uaComponent, String qname) {
             super(uaComponent, qname);
-            addAdditionalDeclares(RoomsManager.RoomsManagerNode.folders.values());
+            this.comp = uaComponent;
+            addAdditionalDeclares(folders.values());
         }
 
         enum folders implements UaHelperUtil.UaFolderDeclare {
             rooms
+        }
+        private enum methods implements UaHelperUtil.UaMethodDeclare {
+
+;
+            private UaHelperUtil.MethodArgument[] in = null;
+            private UaHelperUtil.MethodArgument[] out = null;
+
+            methods(UaHelperUtil.MethodArgument[] inputArguments, UaHelperUtil.MethodArgument[] outputArguments) {
+                this();
+                this.in = inputArguments;
+                this.out = outputArguments;
+            }
+
+            methods() {
+            }
+
+            @Override
+            public UaHelperUtil.MethodArgument[] getInputArguments() {
+                return this.in;
+            }
+
+            @Override
+            public UaHelperUtil.MethodArgument[] getOutputArguments() {
+                return this.out;
+            }
+        }
+
+        protected Variant[] onMethodCall(UaHelperUtil.UaMethodDeclare declared, Variant[] input) throws StatusException {
+
+            return super.onMethodCall(declared, input);
         }
     }
 }

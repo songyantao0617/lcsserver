@@ -29,6 +29,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import javax.annotation.PostConstruct;
 import java.util.Collections;
 import java.util.UUID;
+import java.util.Vector;
+import java.util.function.Consumer;
 
 @FwComponentAnnotation
 @Slf4j
@@ -55,7 +57,38 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
 
     FwProperty<String> actionFeedback;
 
+    public UUID getLightUuid() {
+        return lightUuid;
+    }
+
     UUID lightUuid;
+
+    private final Vector<Consumer<LightBase>> oVector = new Vector<>(2);
+
+    //增加一个观察者，相当于观察者注册
+    public void addListener(Consumer<LightBase> observer) {
+        if (!this.oVector.contains(observer))
+            this.oVector.add(observer);
+    }
+
+    public void deleteObserver(Consumer<LightBase> observer) {
+        this.oVector.remove(observer);
+    }
+
+    public void notifyObserver() {
+        for (Consumer<LightBase> observer : this.oVector) {
+            try {
+                observer.accept(this);
+            } catch (Exception e) {
+                log.error("notifyObserverError", e);
+            }
+        }
+    }
+
+
+    public abstract double getBrightness();
+
+    public abstract String getErrorMsg();
 
     public int getCabinetId() {
         return cabinetId.get();
@@ -128,24 +161,32 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
         if (property == this.lightName) {
             this.getNode().setDisplayName(new LocalizedText(this.lightName.get()));
         }
+
+        this.notifyObserver();
+
     }
 
     public Cabinet getCabinet() {
         return cabinetsManager.GetOrCreateCabinet(this.cabinetId.get());
     }
 
-    public void onSendCtlCommand(
+    public void sendCtlCommand(
+            Dali2LightCommandModel dali2LightCommandModel
+    ) {
+        this.sendCtlCommand(dali2LightCommandModel, Dt8CommandModel.NONE);
+    }
+
+    public void sendCtlCommand(
             Dali2LightCommandModel dali2LightCommandModel,
             Dt8CommandModel dt8CommandModel
-
     ) {
         Futures.addCallback(this.getCabinet().sendCtlCommand(Collections.singletonList(this.lightUuid).toArray(UUID[]::new), dali2LightCommandModel, dt8CommandModel), new FutureCallback<>() {
             @Override
             public void onSuccess(AsyncActionFeedbackWrapper.SendLevelInstruction result) {
-                if (result.getCountOfDali2() > 0 || result.getCountOfDo()>0) {
+                if (result.getCountOfDali2() > 0 || result.getCountOfDo() > 0) {
                     log.info("灯具<{}>成功执行命令:{},{}", lightName.get(), dali2LightCommandModel, dt8CommandModel);
-                }else{
-                    log.error("灯具<{}>未能被命中！",lightName.get());
+                } else {
+                    log.error("灯具<{}>未能被命中！", lightName.get());
                 }
             }
 
@@ -154,7 +195,6 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
                 log.error("灯具<{}>未能成功执行命令:{}", lightName.get(), t.getMessage());
             }
         }, MoreExecutors.directExecutor());
-
     }
 
 
@@ -236,7 +276,7 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
             } else if (declared == methods.sendCtlCommand) {
                 var Cmd103 = new Dali2LightCommandModel(UaHelperUtil.getEnum(Dali2LightCommandModel.Instructions.class, input[0].intValue()), input[1].intValue());
                 var CmdDt8 = new Dt8CommandModel(UaHelperUtil.getEnum(Dt8CommandModel.Instructions.class, input[2].intValue()), input[3].intValue(), input[4].intValue());
-                this.comp.onSendCtlCommand(Cmd103, CmdDt8);
+                this.comp.sendCtlCommand(Cmd103, CmdDt8);
                 return null;
             }
             return super.onMethodCall(declared, input);

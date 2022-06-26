@@ -1,5 +1,6 @@
 package com.pxccn.PxcDali2.server.space.cabinets;
 
+import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
 import com.pxccn.PxcDali2.server.events.CabinetDetailUploadEvent;
 import com.pxccn.PxcDali2.server.events.CabinetSimpleEvent;
@@ -13,6 +14,7 @@ import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -24,7 +26,11 @@ public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManag
     @Autowired
     CabinetRequestService cabinetRequestService;
 
-
+    @Scheduled(cron = "0/5 * * * * ?")
+    private void checkCabinetAlive() {
+        log.trace("checkCabinetAlive");
+        Arrays.stream(this.getAllCabinet()).forEach(Cabinet::checkIsNotAlive);
+    }
 
     @EventListener
     public void onCabinetSimpleEvent(CabinetSimpleEvent event) {
@@ -51,7 +57,9 @@ public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManag
         cabinet.onUpdateStatus(message);
     }
 
-
+    public boolean checkHasCabinet(int cabinetId) {
+        return this.getProperty(String.valueOf(cabinetId)) != null;
+    }
 
     public Cabinet GetOrCreateCabinet(int cabinetId) {
         String cabinetPropName = String.valueOf(cabinetId);
@@ -67,15 +75,18 @@ public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManag
         return (Cabinet) p.get();
     }
 
-    public void doCheckCabinetAlive() {
-        Arrays.stream(this.getAllCabinet()).forEach(Cabinet::checkIsNotAlive);
-    }
 
     public Cabinet[] getAllCabinet() {
         return Arrays.stream(this.getAllProperty(Cabinet.class)).map(FwProperty::get).toArray(Cabinet[]::new);
     }
 
+    public Cabinet[] getAllOnlineCabinet() {
+        return Arrays.stream(getAllCabinet()).filter(Cabinet::isAlive).toArray(Cabinet[]::new);
+    }
 
+    public Cabinet[] getAllOfflineCabinet() {
+        return Arrays.stream(getAllCabinet()).filter(c -> !c.isAlive()).toArray(Cabinet[]::new);
+    }
 
     public void started() {
         super.started();

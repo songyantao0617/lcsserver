@@ -1,5 +1,6 @@
 package com.pxccn.PxcDali2.server.framework;
 
+import com.prosysopc.ua.StatusException;
 import com.pxccn.PxcDali2.common.ArrayUtil;
 import lombok.extern.slf4j.Slf4j;
 
@@ -79,7 +80,7 @@ public class FwProperty<T> extends FwObject implements IFwCompLifecycle {
         return this._value;
     }
 
-    public void set(T value, FwContext context) {
+    public void set(T value, FwContext context)  {
         boolean _change = !this._value.equals(value);
         var oldValue = this._value;
         this._value = value;
@@ -88,11 +89,11 @@ public class FwProperty<T> extends FwObject implements IFwCompLifecycle {
         }
     }
 
-    public void set(T value) {
+    public void set(T value)  {
         this.set(value, null);
     }
 
-    protected void onChange(T oldValue, T newValue, FwContext context) {
+    protected void onChange(T oldValue, T newValue, FwContext context)  {
         var parent = getParent();
         if (parent != null && parent.isRunning()) {
             this.getParent().onChanged(this, context);

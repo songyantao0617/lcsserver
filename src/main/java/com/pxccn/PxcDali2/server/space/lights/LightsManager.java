@@ -58,6 +58,10 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
 
     }
 
+    public boolean checkHasLight(UUID lightUuid) {
+        return this.getProperty(lightUuid.toString()) != null;
+    }
+
     @EventListener
     public void onDaliLightsRealtimeStatusModelEvent(DaliLightsRealtimeStatusModelEvent event) {
         event.getModelList().forEach(m -> {

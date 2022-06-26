@@ -22,6 +22,8 @@ public class ResponseWrapper<T extends com.google.protobuf.GeneratedMessageV3> e
 //                return new CabinetSimpleActionRespWrapper(pb);
             case ActionWithFeedbackRespWrapper.TypeUrl:
                 return new ActionWithFeedbackRespWrapper(pb);
+            case ActionRespWrapper.TypeUrl:
+                return new ActionRespWrapper(pb);
         }
         return new ResponseWrapper(pb);//异常情况
     }

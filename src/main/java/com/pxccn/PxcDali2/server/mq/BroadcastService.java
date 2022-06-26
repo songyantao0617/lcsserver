@@ -60,6 +60,8 @@ public class BroadcastService extends ComsumerBase {
 
     @Override
     public void onMessage(Message message) {
+        if(log.isTraceEnabled())
+            log.trace("{}-onMessage:{}",getQueueName(),message);
         try {
             String currentCorrelationId = message.getMessageProperties().getCorrelationId();
             var t = this.pending.get(currentCorrelationId);

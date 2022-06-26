@@ -63,6 +63,8 @@ public abstract class ProtoToPlcQueueMsg<T extends com.google.protobuf.Generated
 //                return new CabinetSimpleActionRequestWrapper(msg);
             case ActionWithFeedbackRequestWrapper.TypeUrl:
                 return new ActionWithFeedbackRequestWrapper(msg);
+            case ActionRequestWrapper.TypeUrl:
+                return new ActionRequestWrapper(msg);
             default:
                 return null;
         }

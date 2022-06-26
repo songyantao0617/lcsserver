@@ -117,6 +117,8 @@ public abstract class ProtoToServerQueueMsg<T extends com.google.protobuf.Genera
                 return new CabinetDetailUploadWrapper(msg);
             case AsyncActionFeedbackWrapper.TypeUrl:
                 return new AsyncActionFeedbackWrapper(msg);
+            case DbSyncReportWrapper.TypeUrl:
+                return new DbSyncReportWrapper(msg);
             default:
                 return null;
         }

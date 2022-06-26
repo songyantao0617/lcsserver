@@ -5,12 +5,16 @@ import com.prosysopc.ua.nodes.UaNode;
 import com.prosysopc.ua.stack.builtintypes.LocalizedText;
 import com.prosysopc.ua.stack.builtintypes.Variant;
 import com.prosysopc.ua.stack.core.Identifiers;
+import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
+import com.pxccn.PxcDali2.MqSharePack.model.Dt8CommandModel;
 import com.pxccn.PxcDali2.MqSharePack.model.RoomDetailModel;
 import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
 import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
+import com.pxccn.PxcDali2.server.space.cabinets.Cabinet;
+import com.pxccn.PxcDali2.server.space.cabinets.CabinetsManager;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +22,7 @@ import org.springframework.context.ConfigurableApplicationContext;
 
 import javax.annotation.PostConstruct;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 
 @FwComponentAnnotation
@@ -28,6 +33,9 @@ public class Room extends FwUaComponent<Room.RoomNode> {
 
     @Autowired
     RoomsManager roomsManager;
+
+    @Autowired
+    CabinetsManager cabinetsManager;
 
     FwProperty<String> roomName;
     FwProperty<Integer> cabinetId;
@@ -45,7 +53,7 @@ public class Room extends FwUaComponent<Room.RoomNode> {
         axis_x = addProperty(0, "axis_x");
         axis_y = addProperty(0, "axis_y");
         axis_z = addProperty(0, "axis_z");
-        lastInfosUploadedTimestamp = addProperty(0L,"lastInfosUploadedTimestamp");
+        lastInfosUploadedTimestamp = addProperty(0L, "lastInfosUploadedTimestamp");
     }
 
     UUID roomUuid;
@@ -85,6 +93,15 @@ public class Room extends FwUaComponent<Room.RoomNode> {
 
     }
 
+    public Cabinet getCabinet() {
+        return cabinetsManager.GetOrCreateCabinet(this.cabinetId.get());
+    }
+
+    private void onSendCtlCommand(Dali2LightCommandModel dali2LightCommandModel, Dt8CommandModel dt8CommandModel) {
+        log.trace("<{}> onSendCtlCommand: dali2LightCommandModel={},dt8CommandModel={}", roomName.get(), dali2LightCommandModel, dt8CommandModel);
+        this.getCabinet().onSendCtlCommand(new UUID[]{this.getRoomUuid()}, dali2LightCommandModel, dt8CommandModel);
+    }
+
     @Override
     public void onChanged(FwProperty property, FwContext context) {
         super.onChanged(property, context);
@@ -95,7 +112,7 @@ public class Room extends FwUaComponent<Room.RoomNode> {
 
     public void onFetchDetailsNow() {
         log.info("房间<{}>数据上传执行", this.roomUuid);
-        this.getRoomsManager().AskToUpdateRoomsInfo(Collections.singletonList(this.roomUuid),cabinetId.get());
+        this.getRoomsManager().AskToUpdateRoomsInfo(Collections.singletonList(this.roomUuid), cabinetId.get());
     }
 
     @Override
@@ -120,7 +137,13 @@ public class Room extends FwUaComponent<Room.RoomNode> {
         }
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
-
+            sendCtlCommand(new UaHelperUtil.MethodArgument[]{
+                    new UaHelperUtil.MethodArgument("action", Dali2LightCommandModel.Instructions.class),
+                    new UaHelperUtil.MethodArgument("parameter", Identifiers.Int32),
+                    new UaHelperUtil.MethodArgument("dt8Action", Dt8CommandModel.Instructions.class),
+                    new UaHelperUtil.MethodArgument("dt8ActionParam", Identifiers.Int32),
+                    new UaHelperUtil.MethodArgument("dt8ActionParam2", Identifiers.Int32),
+            }, null),
             blink(new UaHelperUtil.MethodArgument[]{new UaHelperUtil.MethodArgument("enable", Identifiers.Boolean)}, null),
             fetchDetailsNow();
 //            removeThisLight();
@@ -155,6 +178,12 @@ public class Room extends FwUaComponent<Room.RoomNode> {
                 return null;
             } else if (declared == methods.fetchDetailsNow) {
                 this.comp.onFetchDetailsNow();
+                return null;
+            }
+            if (declared == methods.sendCtlCommand) {
+                var Cmd103 = new Dali2LightCommandModel(UaHelperUtil.getEnum(Dali2LightCommandModel.Instructions.class, input[0].intValue()), input[1].intValue());
+                var CmdDt8 = new Dt8CommandModel(UaHelperUtil.getEnum(Dt8CommandModel.Instructions.class, input[2].intValue()), input[3].intValue(), input[4].intValue());
+                this.comp.onSendCtlCommand(Cmd103, CmdDt8);
                 return null;
             }
             return super.onMethodCall(declared, input);

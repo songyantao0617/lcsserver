@@ -45,7 +45,7 @@ public class LcsNodeManager extends NodeManagerUaNode {
 //    public static FolderTypeNode allRoomsFolderNode;
 //    public static FolderTypeNode allCabinetsFolderNode;
 
-    private void initFastObject() throws StatusException {
+    private void initFastObject() {
         UaObjectType fastType = new UaObjectTypeNode(this,
                 new NodeId(this.getNamespaceIndex(), "LCS_FastObjectTypes"),
                 new QualifiedName(this.getNamespaceIndex(), "LCS_FastObjectTypes"),

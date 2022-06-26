@@ -58,10 +58,16 @@ public class LCS_ComponentFastObjectNode extends LCS_FastObjectNodeBase {
         return defaultVal;
     }
 
-    public void setPropertyValue(FwProperty property, Object value) {
+    public void setPropertyValue(FwProperty property, Object value) throws StatusException {
         var t = property.getValueClass();
         if (value.getClass() == t) {
-            property.set(value, FwContext.BY_OPCUA);
+            try {
+                property.set(value, FwContext.BY_OPCUA);
+            }catch (RuntimeException re){
+                if(re.getCause() instanceof StatusException){
+                    throw (StatusException)re.getCause();
+                }
+            }
         } else {
             throw new RuntimeException("NOT IMPL TYPE");
         }

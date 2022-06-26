@@ -8,9 +8,10 @@ import com.pxccn.PxcDali2.server.framework.FwProperty;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
+
 @FwComponentAnnotation
 @Slf4j
-public class DoLight extends LightBase{
+public class DoLight extends LightBase {
 
     FwProperty<Double> subscribe_level;
     FwProperty<String> subscribe_fault;
@@ -19,9 +20,19 @@ public class DoLight extends LightBase{
     @PostConstruct
     public void post() {
         super.post();
-        lightType = addProperty("DO","lightType");
+        lightType = addProperty("DO", "lightType");
         subscribe_level = addProperty(0.0, "subscribe_level");
         subscribe_fault = addProperty("", "subscribe_fault");
+    }
+
+    @Override
+    public double getBrightness() {
+        return this.subscribe_level.get();
+    }
+
+    @Override
+    public String getErrorMsg() {
+        return this.subscribe_fault.get();
     }
 
     protected LCS_LightBaseNode createUaNode() {
@@ -30,7 +41,7 @@ public class DoLight extends LightBase{
 
     public void onNewStatus(DoLightRealtimeStatusModel lrs) {
         super.onNewStatus(lrs);
-        this.subscribe_level.set(lrs.currentValue?100.0:0);
+        this.subscribe_level.set(lrs.currentValue ? 100.0 : 0);
         this.subscribe_fault.set(lrs.exceptionMessage);
     }
 
@@ -41,6 +52,7 @@ public class DoLight extends LightBase{
 
     protected static class LCS_DoLightNode extends LCS_LightBaseNode {
         DoLight comp;
+
         protected LCS_DoLightNode(DoLight comp, String qualifiedName, String objLocalizedText) {
             super(comp, qualifiedName, objLocalizedText);
             this.comp = comp;

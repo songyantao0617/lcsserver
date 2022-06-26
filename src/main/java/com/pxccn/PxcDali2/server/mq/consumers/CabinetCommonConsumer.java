@@ -45,6 +45,8 @@ public class CabinetCommonConsumer extends ComsumerBase {
 
     @Override
     public void onMessage(Message message) {
+        if(log.isTraceEnabled())
+            log.trace("{}-onMessage:{}",getQueueName(),message);
         try {
             var decodedMsg = ProtoToServerQueueMsg.FromData(message.getBody());
             var cabinetVersion = VersionHelper.GetCabinetVersionFromId(decodedMsg.getHeaders().get("ver"));

@@ -4,6 +4,8 @@ import com.pxccn.PxcDali2.Proto.LcsProtos;
 
 public class Dt8CommandModel implements IPbModel<LcsProtos.Dt8Command> {
 
+    public static Dt8CommandModel NONE = new Dt8CommandModel(Instructions.None,0,0);
+
     public enum Instructions {
         Unknown,
         None,

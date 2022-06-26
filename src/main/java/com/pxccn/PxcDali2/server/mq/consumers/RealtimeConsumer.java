@@ -42,10 +42,12 @@ public class RealtimeConsumer extends ComsumerBase {
 
     @Override
     public void onMessage(Message message) {
+        if(log.isTraceEnabled())
+            log.trace("{}-onMessage:{}",getQueueName(),message);
         try {
             var decodedMsg = ProtoToServerQueueMsg.FromData(message.getBody());
             var cabinetVersion = VersionHelper.GetCabinetVersionFromId(decodedMsg.getHeaders().get("ver"));
-            if (cabinetVersion == CabinetVersion.A0052) {
+//            if (cabinetVersion == CabinetVersion.A0052) {
                 if (decodedMsg instanceof RealtimeStatusWrapper) {
                     var lights = ((RealtimeStatusWrapper) decodedMsg).getDali2LightRealtimeStatus();
                     var devs = ((RealtimeStatusWrapper) decodedMsg).getDeviceRealtimeStatus();//TODO
@@ -57,7 +59,7 @@ public class RealtimeConsumer extends ComsumerBase {
                     if (doLights.size() > 0)
                         context.publishEvent(new DoLightsRealtimeStatusModelEvent(this, doLights, cabinetId));
                 }
-            }
+//            }
         } catch (InvalidProtocolBufferException e) {
             log.error("Fail to decode pb: {}", e.getMessage());
         } catch (Throwable e) {

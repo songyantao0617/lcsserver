@@ -15,6 +15,7 @@ public class MqConfigure {
     public static final String switch_realtime = "Fanout-RealtimeStatus";
     public static final String switch_broadcastToPlc = "Fanout-BroadcastToPlc";
     public static final String switch_cabinet_common = "Fanout-CabinetCommon";
+    public static final String switch_cabinet_event = "Fanout-CabinetEvent";
     //    public static final String consumerQueue_realtime = "lcs.server.realtime-status";
 //    public static final String consumerQueue_cabinet_common = "lcs.server.cabinet-common";
     public static final String switch_ToPlcCommon = "Direct-ToPlcCommon";
@@ -40,8 +41,14 @@ public class MqConfigure {
         return new FanoutExchange(switch_cabinet_common, true, false, null);
     }
 
+    @Bean
+    public FanoutExchange CabinetEventExchange() {
+        return new FanoutExchange(switch_cabinet_event, true, false, null);
+    }
+
     /**
      * 全局广播
+     *
      * @return
      */
     @Bean
@@ -77,6 +84,7 @@ public class MqConfigure {
     AsyncRabbitTemplate asyncRabbitTemplate(ObjectProvider<RabbitTemplate> rabbitTemplate) {
         var a = new AsyncRabbitTemplate(rabbitTemplate.getIfAvailable());
         a.setMandatory(true);
+        a.setReceiveTimeout(1000*60*10);
         return a;
     }
 

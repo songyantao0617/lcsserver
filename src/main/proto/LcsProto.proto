@@ -121,6 +121,15 @@ message CabinetDetailUpload{
   bool isMaintenance = 6;
 }
 
+///////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+//数据库更新反馈报告
+message DbSyncReport{
+  bool success = 1;
+}
+
+///////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
 //控制器简单事件推送
 message CabinetSimpleEvent{
   Uuid uuid = 1;
@@ -147,6 +156,7 @@ message ActionWithFeedbackRequest{
     SendBroadcastLevelInstruction sendBroadcastLevelInstruction = 6;
     SaveStation saveStation = 7;
     SetSysTime setSysTime = 8;
+    DbSync dbSync = 9;
   }
   //闪烁命令
   message Blink{
@@ -182,12 +192,12 @@ message ActionWithFeedbackRequest{
     bool setEnableNtp = 4;//是否设置NtpEnable
     bool enableNtp = 5;//NtpEnable值
   }
+  message DbSync{
+    int32 flag = 1;
+  }
 }
 
-//动作同步回应 confirm
-message ActionWithFeedbackResp{
-  bool allDispatched = 1;//没用
-}
+
 
 //动作异步回应
 message AsyncActionFeedback{
@@ -200,6 +210,7 @@ message AsyncActionFeedback{
     SendBroadcastLevelInstruction sendBroadcastLevelInstruction = 6;
     SaveStation saveStation = 7;
     SetSysTime setSysTime = 8;
+    DbSync dbSync = 9;
   }
   message Blink{
 
@@ -221,8 +232,15 @@ message AsyncActionFeedback{
   message SetSysTime{
     int64 currentTime = 1;
   }
+  message DbSync{
+    string message = 1;
+  }
 }
 
+//动作同步回应 confirm
+message ActionWithFeedbackResp{
+  bool allDispatched = 1;//没用
+}
 
 
 

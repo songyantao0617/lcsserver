@@ -15,6 +15,7 @@ public class RoomDetailModel implements IPbModel<LcsProtos.RoomsDetailUpload.Roo
                 ", axis_x=" + axis_x +
                 ", axis_y=" + axis_y +
                 ", axis_z=" + axis_z +
+                ", isDbBased=" + isDbBased +
                 '}';
     }
 
@@ -25,14 +26,22 @@ public class RoomDetailModel implements IPbModel<LcsProtos.RoomsDetailUpload.Roo
     public final int axis_y;
     public final int axis_z;
 
+    public boolean isDbBased() {
+        return isDbBased;
+    }
+
+    public final boolean isDbBased;
+
     public RoomDetailModel(
             UUID uuid,
             String roomName,
             String description,
             int axis_x,
             int axis_y,
-            int axis_z
+            int axis_z,
+            boolean isDbBased
     ) {
+        this.isDbBased = isDbBased;
         this.uuid = uuid;
         this.roomName = roomName;
         this.description = description;
@@ -50,6 +59,7 @@ public class RoomDetailModel implements IPbModel<LcsProtos.RoomsDetailUpload.Roo
                 .setAxisX(this.axis_x)
                 .setAxisY(this.axis_y)
                 .setAxisZ(this.axis_z)
+                .setIsDbBased(this.isDbBased)
                 .build();
     }
 
@@ -60,5 +70,6 @@ public class RoomDetailModel implements IPbModel<LcsProtos.RoomsDetailUpload.Roo
         this.axis_x = pb.getAxisX();
         this.axis_y = pb.getAxisY();
         this.axis_z = pb.getAxisZ();
+        this.isDbBased = pb.getIsDbBased();
     }
 }

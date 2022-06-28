@@ -1,0 +1,40 @@
+#if (${PACKAGE_NAME} && ${PACKAGE_NAME} != "")package ${PACKAGE_NAME};#end
+
+import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
+import com.pxccn.PxcDali2.Proto.LcsProtos;
+
+
+public class ${NAME}Wrapper extends ResponseWrapper<LcsProtos.${NAME}> {
+    public static final String TypeUrl = "type.googleapis.com/${NAME}";
+
+
+    @Override
+    protected LcsProtos.Response.Builder internal_get_payload() {
+        LcsProtos.Response.Builder builder = super.internal_get_payload();
+        builder.setPayload(Any.pack(LcsProtos.${NAME}
+                .newBuilder()
+                //TODO:property转pb
+
+                .build()));
+        return builder;
+    }
+
+
+    //反向构造
+    public ${NAME}Wrapper(LcsProtos.ToServerMessage pb) throws InvalidProtocolBufferException {
+        super(pb);
+        LcsProtos.${NAME} v = pb.getPayload().unpack(LcsProtos.Response.class).getPayload().unpack(LcsProtos.${NAME}.class);
+        //TODO:赋property
+    }
+
+    //正向构造
+    public ${NAME}Wrapper(ResponseParam param  ,
+                            //TODO:构造参数
+     ) {
+        super(param);
+        //赋property
+    }
+
+}

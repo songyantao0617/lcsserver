@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration>
+    <!--    控制台输出-->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <layout class="ch.qos.logback.classic.PatternLayout">
+            <pattern>
+                %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level --- [%20.20(%thread)] %-40.40(%logger{40}) : %msg%n
+            </pattern>
+        </layout>
+    </appender>
+    <!--    全局INFO-->
+    <appender name="APP_INFO_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder>
+            <pattern>
+                %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level --- [%20.20(%thread)] %-40.40(%logger{40}) : %msg%n
+            </pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>log/app.info.%d.log</fileNamePattern>
+            <MaxHistory>7</MaxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <appender name="OPC_INFO_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder>
+            <pattern>
+                %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level --- [%20.20(%thread)] %-40.40(%logger{40}) : %msg%n
+            </pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>log/opc.info.%d.log</fileNamePattern>
+            <MaxHistory>7</MaxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <appender name="REQUEST_DEBUG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder>
+            <pattern>
+                %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level --- [%20.20(%thread)] %-40.40(%logger{40}) : %msg%n
+            </pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>log/req.debug.%d.log</fileNamePattern>
+            <MaxHistory>7</MaxHistory>
+        </rollingPolicy>
+    </appender>
+
+    <appender name="MQ_WARN_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoder>
+            <pattern>
+                %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level --- [%20.20(%thread)] %-40.40(%logger{40}) : %msg%n
+            </pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>log/mq.warn.%d.log</fileNamePattern>
+            <MaxHistory>7</MaxHistory>
+        </rollingPolicy>
+    </appender>
+
+<!--    <appender name="foobar" class="ch.qos.logback.core.rolling.RollingFileAppender">-->
+<!--        <filter class="ch.qos.logback.classic.filter.LevelFilter">-->
+<!--            &lt;!&ndash; 设置info以及info以上 warn，error（不包括），fatal  级别 输出到一个文件 &ndash;&gt;-->
+<!--            <level>ERROR</level>-->
+<!--            <onMatch>DENY</onMatch>-->
+<!--            <onMismatch>ACCEPT</onMismatch>-->
+<!--        </filter>-->
+<!--        <encoder>-->
+<!--            <pattern>-->
+<!--                %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level -&#45;&#45; [%20.20(%thread)] %-40.40(%logger{40}) : %msg%n-->
+<!--            </pattern>-->
+<!--        </encoder>-->
+<!--        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">-->
+<!--            <fileNamePattern>log/app.foobar.%d.log</fileNamePattern>-->
+<!--            <MaxHistory>14</MaxHistory>-->
+<!--        </rollingPolicy>-->
+<!--    </appender>-->
+    <appender name="DatabaseFileAppender" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--        <filter class="ch.qos.logback.classic.filter.LevelFilter">-->
+        <!--            <level>DEBUG</level>-->
+        <!--        </filter>-->
+        <encoder>
+            <pattern>
+                %d{yyyy-MM-dd HH:mm:ss.SSS} %-5level --- [%20.20(%thread)] %-40.40(%logger{40}) : %msg%n
+            </pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>log/database-debug.%d.log</fileNamePattern>
+            <MaxHistory>14</MaxHistory>
+        </rollingPolicy>
+    </appender>
+    <!-- 设置error级别 输出到一个文件 -->
+<!--    <appender name="fileErrorApp" class="ch.qos.logback.core.rolling.RollingFileAppender">-->
+<!--        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">-->
+<!--            <level>ERROR</level>-->
+<!--        </filter>-->
+<!--        <encoder>-->
+<!--            <pattern>-->
+<!--                %date{yyyy-MM-dd HH:mm:ss.SSS} %-5level[%thread]%logger{56}.%method:%L -%msg%n-->
+<!--            </pattern>-->
+<!--        </encoder>-->
+
+<!--        &lt;!&ndash; 设置滚动策略 &ndash;&gt;-->
+<!--        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">-->
+<!--            &lt;!&ndash; 路径 &ndash;&gt;-->
+<!--            <fileNamePattern>app_log/log/app.err.%d.log</fileNamePattern>-->
+
+<!--            &lt;!&ndash; 控制保留的归档文件的最大数量，超出数量就删除旧文件，假设设置每个月滚动，-->
+<!--            且<maxHistory> 是1，则只保存最近1个月的文件，删除之前的旧文件 &ndash;&gt;-->
+<!--            <MaxHistory>30</MaxHistory>-->
+
+<!--        </rollingPolicy>-->
+<!--    </appender>-->
+
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+        <appender-ref ref="APP_INFO_FILE"/>
+    </root>
+
+    <logger name="com.pxccn.PxcDali2.server.space" additivity="true">
+        <level value="DEBUG"/>
+    </logger>
+
+
+
+    <!--    数据库相关-->
+    <logger name="com.pxccn.PxcDali2.server.database" additivity="true">
+        <level value="DEBUG"/>
+        <appender-ref ref="DatabaseFileAppender"/>
+    </logger>
+    <!--    REQ-->
+    <logger name="com.pxccn.PxcDali2.server.service.rpc.impl.CabinetRequestServiceImpl" additivity="true">
+        <level value="DEBUG"/>
+        <appender-ref ref="REQUEST_DEBUG_FILE"/>
+    </logger>
+
+    <!--    MQ-->
+    <logger name="org.springframework.amqp.rabbit.listener" additivity="true">
+        <level value="WARN"/>
+        <appender-ref ref="MQ_WARN_FILE"/>
+    </logger>
+
+
+    <!--    OPCUA-->
+    <logger name="com.pxccn.PxcDali2.server.service.opcua" additivity="true">
+        <level value="INFO"/>
+        <appender-ref ref="OPC_INFO_FILE"/>
+    </logger>
+    <logger name="com.prosysopc.ua" additivity="true">
+        <level value="INFO"/>
+        <appender-ref ref="OPC_INFO_FILE"/>
+    </logger>
+
+
+</configuration>

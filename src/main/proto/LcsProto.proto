@@ -1,0 +1,365 @@
+syntax = "proto3";
+option java_package = "com.pxccn.PxcDali2.Proto";
+option java_outer_classname = "LcsProtos";
+import "google/protobuf/any.proto";
+//UUID
+message Uuid{
+  int64 MSB = 1;
+  int64 LSB = 2;
+}
+//字符串键值对
+message sKsV{
+  string K = 1;
+  string V = 2;
+}
+
+enum LightTypeEnum{
+  DALI2 = 0;
+  DO = 1;
+}
+
+message Dali2LightCommand{
+  string instruction = 1; //指令枚举名称
+  int32 parameter = 2;
+}
+
+message Dt8Command{
+  string instruction = 1; //指令枚举名称
+  int32 dt8ActionParam = 2;
+  int32 dt8ActionParam2 = 3;
+}
+
+/*****************************************************************************/
+/*************北向实时数据包*****************************************************/
+/*****************************************************************************/
+
+//实时数据包公共部分
+message CommonRealtimeStatus{
+  Uuid id = 1;
+  int32 terminalIndex = 2;
+  int32 shortAddress = 3;
+  int64 timestamp = 4;
+  string exceptionMessage = 5;
+}
+
+//DALI2单个灯具的实时状态信息
+message Dali2LightRealtimeStatus{
+  CommonRealtimeStatus common = 1;
+  int32 rawStatusResponse = 2;
+  int32 rawActualLevelResponse = 3;
+  bool frameError = 4;
+}
+
+//DO单个灯具的实时状态信息
+message DoLightRealtimeStatus{
+  CommonRealtimeStatus common = 1;
+  bool currentValue = 2;
+}
+//TODO DALI2设备报文
+message Dali2DeviceRealtimeStatus{
+
+}
+
+//灯具与开关实时状态报文
+message RealtimeStatus{
+  repeated Dali2LightRealtimeStatus dali2LightStatus = 1;
+  repeated Dali2DeviceRealtimeStatus dali2DeviceStatus = 2;
+  repeated DoLightRealtimeStatus doLightStatus = 3;
+}
+
+//控制柜实时状态报文
+message CabinetStatus{
+  repeated sKsV props = 1;
+}
+
+/*****************************************************************************/
+/*************详细信息数据包*****************************************************/
+/*****************************************************************************/
+
+//灯具详细信息上传报文
+message LightsDetailUpload{
+  message LightCommonDetail{
+    Uuid uuid = 1;
+    string lightName = 2;
+    string description = 3;
+    int32 axis_x = 4;
+    int32 axis_y = 5;
+    int32 axis_z = 6;
+    int32 shortAddress = 7;
+    int32 terminalIndex = 8;
+    bool isBlinking = 9;
+  }
+  message Dali2LightDetail{
+    LightCommonDetail common = 1;
+  }
+  message DoLightDetail{
+    LightCommonDetail common = 1;
+  }
+  repeated Dali2LightDetail dali2LightDetail = 1;
+  repeated DoLightDetail doLightDetail = 2;
+}
+//房间详细信息上传报文
+message RoomsDetailUpload{
+  message RoomDetail{
+    Uuid uuid = 1;
+    string roomName = 2;
+    string description = 3;
+    int32 axis_x = 4;
+    int32 axis_y = 5;
+    int32 axis_z = 6;
+    bool isDbBased = 7;
+  }
+  repeated RoomDetail roomDetail = 1;
+}
+//控制柜详细信息上传报文
+message CabinetDetailUpload{
+  string cabinetName = 1;
+  string description = 2;
+  int32 axis_x = 3;
+  int32 axis_y = 4;
+  int32 axis_z = 5;
+  bool isMaintenance = 6;
+}
+
+///////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+//数据库更新反馈报告
+message DbSyncReport{
+  bool success = 1;
+}
+
+///////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////
+//控制器简单事件推送
+message CabinetSimpleEvent{
+  Uuid uuid = 1;
+  string event = 2; //枚举
+}
+
+
+//简单操作请求下发
+message ActionRequest{
+  string instruction = 1;//枚举
+}
+//简单操作回应
+message ActionResp{
+  bool success = 1;
+}
+
+//带Feedback动作请求
+message ActionWithFeedbackRequest{
+  Uuid requestId = 1;
+  oneof action {
+    Blink blink = 3;
+    SetShortAddress setShortAddress = 4;
+    SendLevelInstruction sendLevelInstruction = 5;
+    SendBroadcastLevelInstruction sendBroadcastLevelInstruction = 6;
+    SaveStation saveStation = 7;
+    SetSysTime setSysTime = 8;
+    DbSync dbSync = 9;
+  }
+  //闪烁命令
+  message Blink{
+    bool enable = 1;
+    repeated Uuid targetUuids = 2;
+  }
+  //设置新短地址
+  message SetShortAddress{
+    int32 newShortAddress = 1;
+    repeated Uuid targetUuids = 2;
+  }
+  //发送亮度指令
+  message SendLevelInstruction{
+    Dali2LightCommand command = 1;
+    repeated Uuid targetUuids = 2;
+    Dt8Command dt8command = 3;
+  }
+  //发送广播亮度指令
+  message SendBroadcastLevelInstruction{
+    Dali2LightCommand command = 1;
+    Dt8Command dt8command = 2;
+    int32 terminalIndex = 3; //-1 则代表所有
+  }
+  //保存station
+  message SaveStation{
+
+  }
+  //设置系统时间
+  message SetSysTime{
+    int64 timestamp = 1;//如果带值则立即使用时间戳对时
+    bool forceNtp = 2;// 强制立即NTP
+    string newNtpAddress = 3;//如果带值则修改Ntp地址
+    bool setEnableNtp = 4;//是否设置NtpEnable
+    bool enableNtp = 5;//NtpEnable值
+  }
+  message DbSync{
+    int32 flag = 1;
+  }
+}
+
+
+
+//动作异步回应
+message AsyncActionFeedback{
+  Uuid requestId = 1;
+  string exceptionMessage = 2;
+  oneof payload {
+    Blink blink = 3;
+    SetShortAddress setShortAddress = 4;
+    SendLevelInstruction sendLevelInstruction = 5;
+    SendBroadcastLevelInstruction sendBroadcastLevelInstruction = 6;
+    SaveStation saveStation = 7;
+    SetSysTime setSysTime = 8;
+    DbSync dbSync = 9;
+  }
+  message Blink{
+
+  }
+  message SetShortAddress{
+
+  }
+  message SendLevelInstruction{
+    int32 countOfRoom = 1;
+    int32 countOfDo = 2;
+    int32 countOfDali2 = 3;
+  }
+  message SendBroadcastLevelInstruction{
+    int32 countOfLights = 1;
+  }
+  message SaveStation{
+
+  }
+  message SetSysTime{
+    int64 currentTime = 1;
+  }
+  message DbSync{
+    string message = 1;
+  }
+}
+
+//动作同步回应 confirm
+message ActionWithFeedbackResp{
+  bool allDispatched = 1;//没用
+}
+
+
+
+
+
+message Event{
+  enum EventType{
+    ROOM_ACTION = 0;
+  }
+  EventType eventType = 1;
+}
+
+
+
+//Niagara 平台级操作请求
+message perOperateRequest{
+  string operate = 1;//枚举
+  oneof howToLocate{
+    string targetSlotOrd = 2;
+    string lightOrRoomUuid = 3;//UUID 拼接方式
+  }
+  oneof parameter{
+    string newValueToSet = 5;
+    string methodName = 6;
+  }
+  repeated bytes methodParameters = 7;
+}
+
+//Niagara 平台级操作回应
+message perOperateResp{
+  bool success = 1;
+  string exceptionReason = 2;
+  string targetValue = 3;
+  bytes methodReturn = 4;
+}
+
+//PLC推送相关资源的详细信息请求
+message DetailInfoRequest{
+  bool getAll = 1;
+  repeated Uuid resourceUuids = 2;
+}
+//PLC推送相关资源的详细信息回应
+message DetailInfoResp{
+  int32 uploadedLightsCount = 1;
+  int32 uploadedRoomsCount = 2;
+}
+
+
+message NiagaraOperateRequest{
+  repeated perOperateRequest operates = 1;
+  bool stopAtError = 2;
+}
+
+message NiagaraOperateResp{
+  repeated perOperateResp responses = 1;
+}
+
+
+message PollManagerSettingRequest{
+  bool xnormalDelay = 1;
+  int32 normalDelay = 2;
+  bool xhighPriorityDelay = 3;
+  int32 highPriorityDelay = 4;
+  bool xhighPriorityQueueLength = 5;
+  int32 highPriorityQueueLength = 6;
+  bool xhighPriorityBundleSize = 7;
+  int32 highPriorityBundleSize = 8;
+  bool xnormalPriorityBundleSize = 9;
+  int32 normalPriorityBundleSize = 10;
+  bool xnotifyChangeOnly = 11;
+  bool notifyChangeOnly = 12;
+  bool purgeCache = 13;
+}
+
+message PollManagerSettingResp{
+  int32 ManagerCount = 1;
+}
+
+//南向发送Ping
+message PingRequest{
+  int32 foo = 1;
+  int32 bar = 2;
+}
+
+//北向Ping
+message PingResp{
+  int32 foo = 1;
+  int32 bar = 2;
+  string cabinetName = 4;
+}
+
+//北向回应封装
+message Response{
+  enum Status{
+    SUCCESS = 0;
+    FAILURE = 1;
+    FATAL = 2;
+  }
+  Status status = 2;
+  string exceptionMessage = 3;
+  google.protobuf.Any payload = 4; //封装真实回应内容
+}
+
+//报文头
+message Headers{
+  repeated sKsV kvs = 1;
+}
+
+//南向报文
+message ToPlcMessage{
+  int64 timestamp = 1;
+  Headers headers = 3;
+  google.protobuf.Any payload = 5;
+}
+
+//北向报文
+message ToServerMessage{
+  int32 cabinetId = 1;
+  int64 timestamp = 2;
+  Headers headers = 3;
+  google.protobuf.Any payload = 4;  //如果为回应，封装 Response
+}

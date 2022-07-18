@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
 import com.prosysopc.ua.stack.builtintypes.LocalizedText;
+import com.prosysopc.ua.stack.builtintypes.QualifiedName;
 import com.prosysopc.ua.stack.builtintypes.Variant;
 import com.prosysopc.ua.stack.core.Identifiers;
 import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
@@ -17,6 +18,7 @@ import com.pxccn.PxcDali2.server.database.model.RoomUnitV3;
 import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
 import com.pxccn.PxcDali2.server.service.db.CabinetQueryService;
+import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
@@ -50,13 +52,12 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
     V3RoomsManager v3RoomsManager;
     @Autowired
     CabinetsManager cabinetsManager;
-
     @Autowired
     CabinetRequestService cabinetRequestService;
-
+    @Autowired
+    UaAlarmEventService uaAlarmEventService;
     @Autowired
     LightsManager lightsManager;
-
     FwProperty<String> roomName;
     FwProperty<String> description;
     FwProperty<Integer> axis_x;
@@ -64,7 +65,6 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
     FwProperty<Integer> axis_z;
     FwProperty<Double> brightnessAverage;
     FwProperty<String> brightnessSummary;
-
     FwProperty<String> CorrelateCabinets;
     UUID roomUuid;
     Map<UUID, LightBase> memberLights = new ConcurrentHashMap<>();
@@ -72,7 +72,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
 
     @PostConstruct
     public void post() {
-        roomName = addProperty("name..", "roomName");
+        roomName = addProperty("", "roomName");
         description = addProperty("description", "description");
         axis_x = addProperty(0, "axis_x");
         axis_y = addProperty(0, "axis_y");
@@ -126,7 +126,9 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
     }
 
     private void handleLightsSubscribe(List<LightBase> valid, List<UUID> missing) {
-        log.trace("handleLightsSubscribe<{}> valid={},missing={}", roomName.get(), valid, missing);
+        if (log.isTraceEnabled()) {
+            log.trace(logStr("handleLightsSubscribe : valid={},missing={}", valid, missing));
+        }
         var remain = new HashMap<>(memberLights);
         valid.forEach(i -> {
             if (memberLights.containsKey(i.getLightUuid())) {
@@ -159,6 +161,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
 
     /**
      * 从数据库读取关联控制柜
+     * 填入 CorrelateCabinets 后，调用消费函数
      */
     public void getCabinetsFromDb(@Nullable Consumer<List<Integer>> then) {
         Futures.addCallback(cabinetQueryService.queryCorrelateCabinetIdFromV3RoomId(this.getRoomUuid()), new FutureCallback<List<Integer>>() {
@@ -181,7 +184,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
      * 从数据库读取关联灯具信息
      */
     public void getLightsFromDb(@Nullable Consumer<Void> then) {
-        log.trace("getLightsFromDb<{}>", roomName.get());
+        log.trace(logStr("getLightsFromDb"));
         var f = cabinetQueryService.queryLightsUuidOfV3Room(this.getRoomUuid());
         Futures.addCallback(f, new FutureCallback<List<UUID>>() {
             @Override
@@ -224,6 +227,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
         super.onChanged(property, context);
         if (property == this.roomName) {
             this.getNode().setDisplayName(new LocalizedText(this.roomName.get()));
+            this.getNode().setBrowseName(new QualifiedName(this.getNode().getNamespaceIndex(),this.roomName.get()));
         }
     }
 
@@ -255,66 +259,82 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
             @Override
             public void onSuccess(@Nullable RoomUnitV3 result) {
                 if (result != null) {
-                    log.debug("V3房间<{}>获取到基本数据：{}", roomName.get(), result);
+                    var msg = logStr("getBasicInfoFromDb : {}",result);
+                    log.debug(msg);
                     then.accept(result);
                 } else {
-                    log.warn("V3房间<{}>已经不存在", roomName.get());
+                    var msg = logStr("room not exist in db");
+                    log.warn(msg);
+                    uaAlarmEventService.failureEvent(V3Room.this,msg);
                 }
             }
 
             @Override
             public void onFailure(Throwable t) {
-                log.error("V3房间<{}>获取信息失败", roomName.get(), t);
+                var msg = logStr("fail to getBasicInfoFromDb",t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(V3Room.this,msg);
             }
         }, MoreExecutors.directExecutor());
     }
 
     public void onFetchDetailsNow() {
-        log.trace("onFetchDetailsNow<{}>", roomName.get());
+        log.trace(logStr("onFetchDetailsNow"));
         Futures.addCallback(cabinetQueryService.getV3RoomBasicInfo(this.getRoomUuid()), new FutureCallback<RoomUnitV3>() {
             @Override
             public void onSuccess(@Nullable RoomUnitV3 result) {
                 if (result != null) {
-                    log.debug("V3房间<{}>获取到基本数据：{}", roomName.get(), result);
-                    refresh(result);
+                    var msg = logStr("getV3RoomBasicInfo : {}", result);
+                    log.debug(msg);
+                    uaAlarmEventService.debugEvent(V3Room.this, msg);
                 } else {
-                    log.warn("V3房间<{}>已经不存在", roomName.get());
+                    var msg = logStr("room not exist anymore");
+                    log.warn(msg);
+                    uaAlarmEventService.failureEvent(V3Room.this, msg);
                 }
             }
 
             @Override
             public void onFailure(Throwable t) {
-                log.error("V3房间<{}>获取信息失败", roomName.get(), t);
+                var msg = logStr("fail to getV3RoomBasicInfo",t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(V3Room.this, msg);
             }
         }, MoreExecutors.directExecutor());
     }
 
     private void sendCommandToCabinets(List<Integer> targets, Dali2LightCommandModel dali2LightCommandModel, Dt8CommandModel dt8CommandModel) {
         targets.forEach(cid -> {
-            if (cabinetsManager.checkHasCabinet(cid)) {
+            if (cabinetsManager.checkIsAlive(cid)) {
                 var cab = cabinetsManager.GetOrCreateCabinet(cid);
-                if (cab.isAlive()) {
-                    Futures.addCallback(cab.sendCtlCommand(new UUID[]{getRoomUuid()}, dali2LightCommandModel, dt8CommandModel), new FutureCallback<AsyncActionFeedbackWrapper.SendLevelInstruction>() {
-                        @Override
-                        public void onSuccess(AsyncActionFeedbackWrapper.@Nullable SendLevelInstruction result) {
-                            log.info("V3房间<{}>成功通知 {}", roomName.get(), cab);
-                        }
+                Futures.addCallback(cab.sendCtlCommand(new UUID[]{getRoomUuid()}, dali2LightCommandModel, dt8CommandModel), new FutureCallback<AsyncActionFeedbackWrapper.SendLevelInstruction>() {
+                    @Override
+                    public void onSuccess(AsyncActionFeedbackWrapper.@Nullable SendLevelInstruction result) {
+                        var msg = logStr("sendCommandToCabinets <{}> success", cab);
+                        log.info(msg);
+                        uaAlarmEventService.successEvent(V3Room.this, msg);
+                    }
 
-                        @Override
-                        public void onFailure(Throwable t) {
-                            log.error("V3房间<{}>未能通知 {} :{}", roomName.get(), cab, t.getMessage());
-                        }
-                    }, MoreExecutors.directExecutor());
-
-                } else {
-                    log.warn("驱动V3房间<{}>时,控制柜<{}>无法被通知,因为其处于离线状态", roomName.get(), cid);
-                }
+                    @Override
+                    public void onFailure(Throwable t) {
+                        var msg = logStr("sendCommandToCabinets <{}> failure", cab, t);
+                        log.error(msg);
+                        uaAlarmEventService.failureEvent(V3Room.this, msg);
+                    }
+                }, MoreExecutors.directExecutor());
             } else {
-                log.warn("驱动V3房间<{}>时,控制柜<{}>无法被通知,因为其还未注册", roomName.get(), cid);
+                var msg = logStr("sendCommandToCabinets <{}> failure: not alive)", cid);
+                log.warn(msg);
+                uaAlarmEventService.failureEvent(V3Room.this, msg);
             }
         });
     }
 
+    /**
+     * 获取与本房间相关联的控制柜ID,非实时
+     *
+     * @param cabinetIds
+     */
     private void getAccessibleCabinetIds(Consumer<List<Integer>> cabinetIds) {
         if (CorrelateCabinets.get().isEmpty()) {
             this.getCabinetsFromDb(cabinetIds);
@@ -325,30 +345,67 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
     }
 
     public void onSendCtlCommand(Dali2LightCommandModel dali2LightCommandModel, Dt8CommandModel dt8CommandModel) {
-        log.trace("<{}> onSendCtlCommand: dali2LightCommandModel={},dt8CommandModel={}", roomName.get(), dali2LightCommandModel, dt8CommandModel);
+        var msg = logStr("onSendCtlCommand: dali2LightCommandModel={},dt8CommandModel={}", dali2LightCommandModel, dt8CommandModel);
+        log.trace(msg);
+        uaAlarmEventService.debugEvent(this, msg);
         this.getAccessibleCabinetIds((targets) -> {
             sendCommandToCabinets(targets, dali2LightCommandModel, dt8CommandModel);
         });
     }
 
     public void onSendGroupAddress() {
-        log.trace("<{}> onSendGroupAddress", roomName.get());
+        var msg = logStr("onSendGroupAddress");
+        log.trace(msg);
+        uaAlarmEventService.debugEvent(this, msg);
+
         this.getAccessibleCabinetIds((targets) -> {
             targets.forEach(id -> {
                 var f = cabinetRequestService.invokeMethodAsync(RpcTarget.ToCabinet(id), this.getRoomUuid(), "members", "sendGroupAddress");
                 Futures.addCallback(f, new FutureCallback<Object>() {
                     @Override
                     public void onSuccess(@Nullable Object result) {
-                        log.info("控制柜<{}>收到重写组地址命令", id);
+                        var msg = logStr("Cabinet<{}> execute the sendGroupAddress command");
+                        log.info(msg);
+                        uaAlarmEventService.successEvent(V3Room.this, msg);
                     }
 
                     @Override
                     public void onFailure(Throwable t) {
-                        log.error("控制柜<{}>无法执行重写组地址命令", id, t);
+                        var msg = logStr("Cabinet<{}> fail to execute the sendGroupAddress command", t);
+                        log.error(msg);
+                        uaAlarmEventService.failureEvent(V3Room.this, msg);
                     }
                 }, MoreExecutors.directExecutor());
             });
         });
+    }
+
+    /**
+     * 命令本房间相关联的控制柜执行房间同步任务
+     */
+    public void syncToCabinets() {
+        if (log.isTraceEnabled()) {
+            var msg = "syncToCabinets";
+            log.trace(msg);
+            uaAlarmEventService.debugEvent(this, msg);
+        }
+
+        getCabinetsFromDb(ids -> {
+            ids.forEach(id -> {
+                if (cabinetsManager.checkIsAlive(id)) {
+                    cabinetsManager.GetOrCreateCabinet(id).executeV3Sync();
+                } else {
+                    var msg = logStr("cabinet<> not alive", id);
+                    log.warn(msg);
+                    uaAlarmEventService.failureEvent(V3Room.this, msg);
+                }
+            });
+        });
+    }
+
+
+    protected String getLogLocate() {
+        return roomName.get() + "(" + roomUuid + ")";
     }
 
     UaNode getLightsFolderNode() {
@@ -392,6 +449,9 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
             } else if (declared == methods.sendGroupAddress) {
                 this.comp.onSendGroupAddress();
                 return null;
+            } else if (declared == methods.syncToCabinets) {
+                this.comp.syncToCabinets();
+                return null;
             }
             return super.onMethodCall(declared, input);
         }
@@ -401,6 +461,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
         }
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
+            syncToCabinets(),
             sendGroupAddress(),
             sendCtlCommand(new UaHelperUtil.MethodArgument[]{
                     new UaHelperUtil.MethodArgument("action", Dali2LightCommandModel.Instructions.class),

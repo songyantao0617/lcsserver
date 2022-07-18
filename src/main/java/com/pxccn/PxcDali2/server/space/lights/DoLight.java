@@ -20,7 +20,7 @@ public class DoLight extends LightBase {
     void cabinetStatusChanged(boolean isOnline) {
         if (!isOnline) {
             this.subscribe_level.set(-1.0);
-            this.subscribe_fault.set("控制柜离线，无法通信");
+            this.subscribe_fault.set("Cabinet Offline");
         }
     }
 

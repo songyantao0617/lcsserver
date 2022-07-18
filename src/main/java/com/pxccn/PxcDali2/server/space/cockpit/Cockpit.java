@@ -10,8 +10,11 @@ import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
 import com.pxccn.PxcDali2.MqSharePack.model.Dt8CommandModel;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.Util;
+import com.pxccn.PxcDali2.server.service.V3RoomUpdateService;
+import com.pxccn.PxcDali2.server.service.db.CabinetQueryService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
+import com.pxccn.PxcDali2.server.space.cabinets.Cabinet;
 import com.pxccn.PxcDali2.server.space.cabinets.CabinetsManager;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
@@ -25,9 +28,13 @@ import java.util.UUID;
 @Slf4j
 public class Cockpit extends FwUaComponent<Cockpit.LcsCockpitNode> {
 
-
+    @Autowired
+    V3RoomUpdateService v3RoomUpdateService;
     @Autowired
     CabinetsManager cabinetsManager;
+
+    @Autowired
+    CabinetQueryService cabinetQueryService;
 
     public void onSyncAllOnlineCabinetDb(int flag) {
         log.trace("onSyncAllOnlineCabinetDb: flag={}", flag);
@@ -66,7 +73,7 @@ public class Cockpit extends FwUaComponent<Cockpit.LcsCockpitNode> {
     }
 
     public void onSaveAllOnlineStation() {
-        log.trace("onSaveAllOnlineStation");
+        log.trace(logStr("onSaveAllOnlineStation"));
         Arrays.stream(cabinetsManager.getAllOnlineCabinet()).forEach(c -> {
             Futures.addCallback(c.saveStation(), new FutureCallback<>() {
                 @Override
@@ -80,6 +87,11 @@ public class Cockpit extends FwUaComponent<Cockpit.LcsCockpitNode> {
                 }
             }, MoreExecutors.directExecutor());
         });
+    }
+
+    public void syncAllOnlineCabinetV3Room(){
+        log.trace(logStr("syncAllOnlineCabinetV3Room"));
+        Arrays.stream(cabinetsManager.getAllOnlineCabinet()).forEach(Cabinet::executeV3Sync);
     }
 
     @Override
@@ -110,6 +122,13 @@ public class Cockpit extends FwUaComponent<Cockpit.LcsCockpitNode> {
                 var CmdDt8 = new Dt8CommandModel(UaHelperUtil.getEnum(Dt8CommandModel.Instructions.class, input[3].intValue()), input[4].intValue(), input[5].intValue());
                 this.comp.onSendCtlCommandToAllOnlineCabinet(targets, Cmd103, CmdDt8);
                 return null;
+            }else if(declared == methods.innerTest){
+//                this.comp.v3RoomUpdateService.update(14598041);
+                this.comp.cabinetQueryService.clearV3RoomUpdateFlag(UUID.fromString("1713114F-0000-46A9-B2D2-58A79204AAAA"));
+                return null;
+            }else if(declared == methods.syncAllOnlineCabinetV3Room){
+                this.comp.syncAllOnlineCabinetV3Room();
+                return null;
             }
 
 //            else if(declared == methods.testEnum){
@@ -121,6 +140,9 @@ public class Cockpit extends FwUaComponent<Cockpit.LcsCockpitNode> {
         }
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
+            innerTest,
+
+            syncAllOnlineCabinetV3Room,
             saveAllOnlineStation,
             syncAllOnlineCabinetDb(new UaHelperUtil.MethodArgument[]{new UaHelperUtil.MethodArgument("flag", Identifiers.Int32)}, null),
             sendCtlCommandToAllOnlineCabinet(new UaHelperUtil.MethodArgument[]{

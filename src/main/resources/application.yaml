@@ -1,8 +1,16 @@
 LcsServer:
-  name: "LCS-1"
+  name: "LCS-221" # 应保证集群中唯一
   ver: "0.1"
   timeServer: true # 是否负责全场控制器时间同步任务
-  dataBaseMaxPoolSize: 16
+  autoDiscoverChangedRoom: true # 是否负责自动扫描V3room表status字段
+  dataBaseMaxPoolSize: 16 # 数据库线程数量
+  offlineThreshold: 30000 # 缺少心跳多久后判定为离线
+
+  enableDebugEvent: true
+  debugEventSeverity: 0
+  successEventSeverity: 100
+  failureEventSeverity: 1000
+
 
 spring:
   datasource:
@@ -17,7 +25,7 @@ spring:
     publisher-confirm-type: correlated
     virtual-host: LCS
     host: 172.14.0.5  #mq服务器ip,默认为localhost
-    port: 5672          #mq服务器port,默认为5672
+    port: 5672        #mq服务器port,默认为5672
     username: srv     #mq服务器username,默认为gust
     password: srv     #mq服务器password,默认为guest
     listener:
@@ -45,7 +53,7 @@ prosys:
   ApplicationIssuerCertificateStore: PKI/CA/issuers
   UserCertificateStore: USERS_PKI/CA
   UserIssuerCertificateStore: USERS_PKI/CA/issuers
-  Port: 52520
+  Port: 52522
 
 
 

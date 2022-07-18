@@ -449,6 +449,7 @@ public class UaHelperUtil {
             }
 
             getParentNode(manager.getNamespaceIndex(), f, baseNode).addReference(folderNode, Identifiers.HasComponent, false);
+            getParentNode(manager.getNamespaceIndex(), f, baseNode).addReference(folderNode,Identifiers.HasNotifier,false);
             if (buff != null) {
                 buff.put(f, folderNode);
             }

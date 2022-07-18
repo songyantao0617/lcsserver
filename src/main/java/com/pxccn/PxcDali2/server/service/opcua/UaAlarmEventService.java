@@ -6,6 +6,7 @@ import com.pxccn.PxcDali2.server.space.TopSpace;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.ExecutorService;
@@ -14,11 +15,36 @@ import java.util.concurrent.Executors;
 @Component
 @Slf4j
 public class UaAlarmEventService {
-    ExecutorService executorService = Executors.newFixedThreadPool(2);
+    ExecutorService executorService = Executors.newFixedThreadPool(3);
     @Autowired
     OpcuaService opcuaService;
     @Autowired
     TopSpace topSpace;
+
+    @Value("${LcsServer.enableDebugEvent:true}")
+    boolean enableDebugEvent;
+
+    @Value("${LcsServer.debugEventSeverity:0}")
+    int debugEventSeverity;
+
+    @Value("${LcsServer.successEventSeverity:100}")
+    int successEventSeverity;
+
+    @Value("${LcsServer.failureEventSeverity:1000}")
+    int failureEventSeverity;
+
+    public void successEvent(FwUaComponent source, String message) {
+        this.sendBasicUaEvent(source, message, successEventSeverity);
+    }
+
+    public void debugEvent(FwUaComponent source, String message) {
+        if (enableDebugEvent)
+            this.sendBasicUaEvent(source, message, debugEventSeverity);
+    }
+
+    public void failureEvent(FwUaComponent source, String message) {
+        this.sendBasicUaEvent(source, message, failureEventSeverity);
+    }
 
     public void sendBasicUaEvent(FwUaComponent source, String message, int severity) {
         log.trace("sendBasicEvent: source={},message={},severity={}", source, message, severity);
@@ -28,11 +54,11 @@ public class UaAlarmEventService {
         }
 
         if (!opcuaService.getServer().isRunning()) {
-            log.error("UA 服务未启动，无法发送事件:{}", message);
+            log.error("UA server not started ,fail to send event:{}", message);
         }
         var node = source.getNode();
         if (node == null) {
-            log.error("无法获取{}对象Ua节点,事件发送失败:{}", source.getName(), message);
+            log.error("can not get ua node of '{}' to send event:{}", source.getName(), message);
             return;
         }
         executorService.execute(() -> {
@@ -43,7 +69,7 @@ public class UaAlarmEventService {
                 ev.setSeverity(severity);
                 ev.triggerEvent(null);
             } catch (Exception e) {
-                log.error("无法发送BaseEvent:{}", e.getMessage());
+                log.error("fail to send base event:{}", e.getMessage());
             }
         });
     }

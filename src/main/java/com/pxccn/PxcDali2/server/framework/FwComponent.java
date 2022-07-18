@@ -222,4 +222,14 @@ public abstract class FwComponent extends FwObject implements IFwCompLifecycle {
         }
     }
 
+
+    protected String logStr(String msg, Object... arg) {
+        String logMsg = MessageFormatter.arrayFormat(msg, arg).getMessage();
+        var clsName = this.getClass().getSimpleName();
+        return clsName+"<"+this.getLogLocate()+"> "+logMsg;
+    }
+
+    protected String getLogLocate() {
+        return "";
+    }
 }

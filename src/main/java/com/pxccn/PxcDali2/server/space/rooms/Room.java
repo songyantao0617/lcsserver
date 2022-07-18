@@ -3,6 +3,7 @@ package com.pxccn.PxcDali2.server.space.rooms;
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
 import com.prosysopc.ua.stack.builtintypes.LocalizedText;
+import com.prosysopc.ua.stack.builtintypes.QualifiedName;
 import com.prosysopc.ua.stack.builtintypes.Variant;
 import com.prosysopc.ua.stack.core.Identifiers;
 import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
@@ -105,6 +106,7 @@ public class Room extends FwUaComponent<Room.RoomNode> {
         super.onChanged(property, context);
         if (property == this.roomName) {
             this.getNode().setDisplayName(new LocalizedText(this.roomName.get()));
+            this.getNode().setBrowseName(new QualifiedName(this.getNode().getNamespaceIndex(),this.roomName.get()));
         }
     }
 

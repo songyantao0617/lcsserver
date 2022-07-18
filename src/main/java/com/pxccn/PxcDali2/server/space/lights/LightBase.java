@@ -6,6 +6,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
 import com.prosysopc.ua.stack.builtintypes.LocalizedText;
+import com.prosysopc.ua.stack.builtintypes.QualifiedName;
 import com.prosysopc.ua.stack.builtintypes.Variant;
 import com.prosysopc.ua.stack.core.Identifiers;
 import com.pxccn.PxcDali2.MqSharePack.model.CommonRealtimeStatusModel;
@@ -18,7 +19,9 @@ import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
 import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
+import com.pxccn.PxcDali2.server.service.opcua.type.LCS_AlarmConditionTypeNode;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
+import com.pxccn.PxcDali2.server.service.opcua.type.enums.LCS_AlarmLightErrorTypeNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
 import com.pxccn.PxcDali2.server.space.cabinets.Cabinet;
 import com.pxccn.PxcDali2.server.space.cabinets.CabinetsManager;
@@ -55,6 +58,12 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
     FwProperty<Boolean> isBlinking;
     FwProperty<String> actionFeedback;
     UUID lightUuid;
+
+    LCS_AlarmLightErrorTypeNode alarmNode;
+
+    public LCS_AlarmLightErrorTypeNode getLightErrorAlarmNode(){
+        return this.alarmNode;
+    }
 
     public UUID getLightUuid() {
         return lightUuid;
@@ -111,15 +120,14 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
         this.shortAddress.set(model.shortAddress);
     }
 
-
     public void setUuid(UUID id) {
         this.lightUuid = id;
     }
 
     @PostConstruct
     public void post() {
-        lightName = addProperty("lightName", "lightName");
-        description = addProperty("description", "description");
+        lightName = addProperty("", "lightName");
+        description = addProperty("", "description");
         axis_x = addProperty(0, "axis_x");
         axis_y = addProperty(0, "axis_y");
         axis_z = addProperty(0, "axis_z");
@@ -157,10 +165,10 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
         super.onChanged(property, context);
         if (property == this.lightName) {
             this.getNode().setDisplayName(new LocalizedText(this.lightName.get()));
+            this.getNode().setBrowseName(new QualifiedName(getNode().getNodeId().getNamespaceIndex(),this.lightName.get()));
         }
 
         this.notifyObserver();
-
     }
 
     public Cabinet getCabinet() {
@@ -198,6 +206,22 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
     @Override
     protected LCS_LightBaseNode createUaNode() {
         return new LCS_LightBaseNode(this, this.getName(), this.getName());
+    }
+
+    @Override
+    protected void afterUaNodeCreated() {
+        super.afterUaNodeCreated();
+        try {
+            var node = this.getNode();
+            this.alarmNode = LCS_AlarmLightErrorTypeNode.createInstance(opcuaService.getLcsNodeManager(), this.getNode().getNodeId().getValue() + ".lightErrorAlarm", "lightErrorAlarm");
+            this.alarmNode.setSource(node);
+            node.addComponent(this.alarmNode);
+            this.alarmNode.addReference(node, Identifiers.HasNotifier, true);
+//        node.addReference(this.getParentNode(), Identifiers.HasNotifier, true);
+            this.alarmNode.enable();
+        } catch (Exception e) {
+            log.error("创建灯具报警节点出错", e);
+        }
     }
 
     protected static class LCS_LightBaseNode extends LCS_ComponentFastObjectNode {

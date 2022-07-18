@@ -5,6 +5,8 @@ import com.pxccn.PxcDali2.MqSharePack.message.ProtoHeaders;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToPlcQueueMsg;
 import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
 import com.pxccn.PxcDali2.MqSharePack.model.Dt8CommandModel;
+import com.pxccn.PxcDali2.MqSharePack.model.V3RoomLightInfoModel;
+import com.pxccn.PxcDali2.MqSharePack.model.V3RoomTriggerInfoModel;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.Util;
 
@@ -44,6 +46,12 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
                 break;
             case LcsProtos.ActionWithFeedbackRequest.DBSYNC_FIELD_NUMBER:
                 this.action = new DbSync(v.getDbSync());
+                break;
+            case LcsProtos.ActionWithFeedbackRequest.V3ROOMUPDATE_FIELD_NUMBER:
+                this.action = new V3RoomUpdate(v.getV3RoomUpdate());
+                break;
+            case LcsProtos.ActionWithFeedbackRequest.V3ROOMTRIGGERUPDATE_FIELD_NUMBER:
+                this.action = new V3RoomTriggerUpdate(v.getV3RoomTriggerUpdate());
                 break;
             default:
                 this.action = null;
@@ -100,8 +108,11 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
             builder.setSetSysTime(((SetSysTime) this.action).getPb());
         } else if (this.action instanceof DbSync) {
             builder.setDbSync(((DbSync) this.action).getPb());
+        }else if(this.action instanceof V3RoomUpdate){
+            builder.setV3RoomUpdate(((V3RoomUpdate)this.action).getPb());
+        }else if(this.action instanceof V3RoomTriggerUpdate){
+            builder.setV3RoomTriggerUpdate(((V3RoomTriggerUpdate)action).getPb());
         }
-
         return builder;
     }
 
@@ -368,5 +379,54 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
                     .build();
         }
     }
+
+    public static class V3RoomUpdate extends Action<LcsProtos.ActionWithFeedbackRequest.V3RoomUpdate> {
+        final V3RoomLightInfoModel v3RoomLightInfoModel;
+
+        public V3RoomUpdate(V3RoomLightInfoModel v3RoomLightInfoModel) {
+            this.v3RoomLightInfoModel = v3RoomLightInfoModel;
+        }
+
+        public V3RoomUpdate(LcsProtos.ActionWithFeedbackRequest.V3RoomUpdate pb) {
+            this.v3RoomLightInfoModel = new V3RoomLightInfoModel(pb.getV3RoomLightInfo());
+        }
+
+        public V3RoomLightInfoModel getModel() {
+            return this.v3RoomLightInfoModel;
+        }
+
+        @Override
+        LcsProtos.ActionWithFeedbackRequest.V3RoomUpdate getPb() {
+            return LcsProtos.ActionWithFeedbackRequest.V3RoomUpdate.newBuilder()
+                    .setV3RoomLightInfo(this.v3RoomLightInfoModel.getPb())
+                    .build();
+        }
+    }
+
+    public static class V3RoomTriggerUpdate extends Action<LcsProtos.ActionWithFeedbackRequest.V3RoomTriggerUpdate> {
+        final V3RoomTriggerInfoModel v3RoomTriggerInfoModel;
+
+        public V3RoomTriggerUpdate(V3RoomTriggerInfoModel v3RoomLightInfoModel) {
+            this.v3RoomTriggerInfoModel = v3RoomLightInfoModel;
+        }
+
+        public V3RoomTriggerUpdate(LcsProtos.ActionWithFeedbackRequest.V3RoomTriggerUpdate pb) {
+            this.v3RoomTriggerInfoModel = new V3RoomTriggerInfoModel(pb.getV3RoomTriggerInfo());
+        }
+
+        public V3RoomTriggerInfoModel getModel() {
+            return this.v3RoomTriggerInfoModel;
+        }
+
+        @Override
+        LcsProtos.ActionWithFeedbackRequest.V3RoomTriggerUpdate getPb() {
+            return LcsProtos.ActionWithFeedbackRequest.V3RoomTriggerUpdate.newBuilder()
+                    .setV3RoomTriggerInfo(this.v3RoomTriggerInfoModel.getPb())
+                    .build();
+        }
+    }
+
+
+
 
 }

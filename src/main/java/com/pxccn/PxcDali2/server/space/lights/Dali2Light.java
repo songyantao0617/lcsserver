@@ -72,7 +72,9 @@ public class Dali2Light extends LightBase {
                 throw new RuntimeException("", new StatusException(StatusCodes.Bad_OutOfRange));
             }
             this.sendCtlCommand(new Dali2LightCommandModel(Dali2LightCommandModel.Instructions.DirectPwr_percent, value.intValue()));
-
+        }
+        else if(property == this.subscribe_fault){
+            checkAlarm();
         }
     }
 
@@ -122,6 +124,17 @@ public class Dali2Light extends LightBase {
         }, MoreExecutors.directExecutor());
     }
 
+    private void checkAlarm(){
+        var alarmNode = this.getLightErrorAlarmNode();
+        if(alarmNode == null){
+            return;
+        }
+        if(!this.subscribe_fault.get().isEmpty()){
+            alarmNode.activateAlarm(this.lightName.get(),this.description.get(),this.subscribe_fault.get(),500);
+        }else{
+            alarmNode.inactivateAlarm(false);
+        }
+    }
 
     protected LCS_LightBaseNode createUaNode() {
         return new LCS_Dali2LightNode(this, this.getName(), this.getName());

@@ -28,9 +28,9 @@ public class RpcTarget {
 
     public String toFriendlyString() {
         if (this.isAll) {
-            return "目的地：全场控制器";
+            return "RpcTarget<ALL>";
         } else {
-            return "目的地：" + this.target;
+            return "RpcTarget<"+this.target+">";
         }
     }
 

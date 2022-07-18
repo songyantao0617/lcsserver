@@ -5,16 +5,19 @@ import com.prosysopc.ua.nodes.UaNodeFactoryException;
 import com.prosysopc.ua.nodes.UaObject;
 import com.prosysopc.ua.nodes.UaObjectType;
 import com.prosysopc.ua.nodes.UaType;
+import com.prosysopc.ua.server.EventManager;
 import com.prosysopc.ua.server.ModellingRule;
 import com.prosysopc.ua.server.NodeManagerUaNode;
 import com.prosysopc.ua.server.UaServer;
 import com.prosysopc.ua.server.nodes.PlainProperty;
 import com.prosysopc.ua.server.nodes.UaObjectTypeNode;
+import com.prosysopc.ua.stack.builtintypes.ByteString;
 import com.prosysopc.ua.stack.builtintypes.LocalizedText;
 import com.prosysopc.ua.stack.builtintypes.NodeId;
 import com.prosysopc.ua.stack.builtintypes.QualifiedName;
 import com.prosysopc.ua.stack.core.Identifiers;
 import com.pxccn.PxcDali2.server.service.opcua.type.*;
+import com.pxccn.PxcDali2.server.service.opcua.type.enums.LCS_AlarmLightErrorTypeNode;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,9 +30,15 @@ public class LcsNodeManager extends NodeManagerUaNode {
     public static UaObject objectsFolder;
     public static UaType BaseObjectType;
 
+    private int __eventId = 0;
+
     public LcsNodeManager(UaServer server, String namespaceUri) {
         super(server, namespaceUri);
         MANAGER = this;
+    }
+
+    public synchronized ByteString getNextUserEventId() throws RuntimeException {
+        return EventManager.createEventId(__eventId++);
     }
 
     @Override
@@ -58,6 +67,8 @@ public class LcsNodeManager extends NodeManagerUaNode {
 //        AddEventTypeField();
         initFastObject();
         LCS_Event_BaseType.initType(this);
+        LCS_AlarmConditionTypeNode.initType(this);
+        LCS_AlarmLightErrorTypeNode.initType(this);
         LCS_BaseObjectTypeNode.initType(this);
         LCS_Folder.initType(this);
         LCS_NodeBasedMethodNode.createType(this);

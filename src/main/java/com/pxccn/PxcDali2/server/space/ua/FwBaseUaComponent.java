@@ -14,7 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 public abstract class FwBaseUaComponent<T extends UaNode> extends FwComponent {
 
     @Autowired(required = false)
-    OpcuaService opcuaService;
+    protected OpcuaService opcuaService;
     T _thisNode;
 
     public OpcuaService getOpcuaServer() {
@@ -40,6 +40,7 @@ public abstract class FwBaseUaComponent<T extends UaNode> extends FwComponent {
                 var node = this.createUaNode();
                 this.getParentNode().addComponent(node);
                 this._thisNode = node;
+                this.afterUaNodeCreated();
             }
         }
     }
@@ -49,6 +50,10 @@ public abstract class FwBaseUaComponent<T extends UaNode> extends FwComponent {
     }
 
     protected abstract T createUaNode();
+
+    protected void afterUaNodeCreated(){
+
+    }
 
     public T getNode() {
         if (_thisNode == null) {

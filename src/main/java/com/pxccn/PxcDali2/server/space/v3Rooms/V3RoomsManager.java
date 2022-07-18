@@ -10,21 +10,23 @@ import com.pxccn.PxcDali2.server.database.model.RoomUnitV3;
 import com.pxccn.PxcDali2.server.events.CabinetSimpleEvent;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
 import com.pxccn.PxcDali2.server.service.db.CabinetQueryService;
+import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
+import com.pxccn.PxcDali2.server.space.cabinets.Cabinet;
 import com.pxccn.PxcDali2.server.space.cabinets.CabinetsManager;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
@@ -35,9 +37,14 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
     CabinetRequestService cabinetRequestService;
     @Autowired
     CabinetQueryService cabinetQueryService;
-
+    @Autowired
+    UaAlarmEventService uaAlarmEventService;
     @Autowired
     CabinetsManager cabinetsManager;
+
+    @Value("${LcsServer.autoDiscoverChangedRoom}:false")
+    boolean autoDiscoverChangedRoom;
+
     private ExecutorService executor;
 
     public ExecutorService getExecutor() {
@@ -46,7 +53,7 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
 
     @PostConstruct
     public void init() {
-        executor = LcsExecutors.newWorkStealingPool(20, getClass());
+        executor = LcsExecutors.newWorkStealingPool(32, getClass());
     }
 
     @EventListener
@@ -68,6 +75,140 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
 //                this.AskToUpdateRoomsInfo(Collections.singletonList(uid), cabinetId);
 //                break;
         }
+    }
+
+
+//    private static class SyncStatus{
+//
+//    }
+//    public void syncToCabinets(){
+//        if(log.isTraceEnabled()){
+//            log.trace(logStr("syncToCabinets"));
+//        }
+//
+//
+//
+//        getCabinetsFromDb(ids->{
+//            Map<Cabinet,SyncStatus> cabinets = new HashMap<>();
+//            ids.forEach(id->{
+//                if(cabinetsManager.checkIsAlive(id)){
+//                    cabinets.put(cabinetsManager.GetOrCreateCabinet(id),new SyncStatus());
+//                }
+//            });
+//
+//        });
+//    }
+
+    public void updateChangedRooms(boolean withLog) {
+        var msg = logStr("updateChangedRooms");
+        log.trace(msg);
+        uaAlarmEventService.debugEvent(this, msg);
+
+        Futures.addCallback(this.cabinetQueryService.getUpdatedV3Room(), new FutureCallback<List<RoomUnitV3>>() {
+            @Override
+            public void onSuccess(@Nullable List<RoomUnitV3> updatedRooms) {
+                assert updatedRooms != null;
+                if (updatedRooms.size() == 0) {
+                    var msg = logStr("no rooms need to be updated");
+                    if (withLog) {
+                        log.info(msg);
+                        uaAlarmEventService.successEvent(V3RoomsManager.this, msg);
+                    } else {
+                        log.debug(msg);
+                        uaAlarmEventService.debugEvent(V3RoomsManager.this, msg);
+                    }
+                    return;
+                }
+                var msg = logStr("found rooms that should be updated: {}", updatedRooms);
+                if (withLog) {
+                    log.info(msg);
+                    uaAlarmEventService.successEvent(V3RoomsManager.this, msg);
+                } else {
+                    log.debug(msg);
+                    uaAlarmEventService.debugEvent(V3RoomsManager.this, msg);
+                }
+                //需要更新的房间
+                List<RoomUnitV3> roomsWithStatus1 = updatedRooms.stream().filter(i -> i.getStatus() == 1).collect(Collectors.toList());
+                //需要删除的房间
+                List<RoomUnitV3> roomsWithStatus2 = updatedRooms.stream().filter(i -> i.getStatus() == 2).collect(Collectors.toList());
+
+                Set<Cabinet> cabinets = new HashSet<>();
+
+                roomsWithStatus1.forEach(room -> {
+                    var id = UUID.fromString(room.getRoomuuid());
+                    var r = GetOrCreateRoom(id);
+                    r.refresh(room);
+                    r.getCabinetsFromDb((cList) -> {
+                        for (Integer c : cList) {
+                            if (cabinetsManager.checkIsAlive(c)) {
+                                var cab = cabinetsManager.GetOrCreateCabinet(c);
+                                cabinets.add(cab);
+                            } else {
+                                var msg2 = logStr("ignore cabinet<{}> : not alive", c);
+                                if (withLog) {
+                                    log.error(msg2);
+                                    uaAlarmEventService.failureEvent(V3RoomsManager.this, msg2);
+                                } else {
+                                    log.debug(msg2);
+                                    uaAlarmEventService.debugEvent(V3RoomsManager.this, msg2);
+                                }
+                            }
+
+                        }
+                    });
+                    cabinetQueryService.clearV3RoomUpdateFlag(id);
+                });
+
+                roomsWithStatus2.forEach(room -> {
+                    var id = UUID.fromString(room.getRoomuuid());
+                    var roomInServer = getRoomByUUID(id);
+                    if (roomInServer == null) {
+                        var msg2 = logStr("room<{}> not exist", room.getName());
+                        if (withLog) {
+                            log.error(msg2);
+                            uaAlarmEventService.failureEvent(V3RoomsManager.this, msg2);
+                        } else {
+                            log.debug(msg2);
+                            uaAlarmEventService.debugEvent(V3RoomsManager.this, msg2);
+                        }
+                        return;
+                    }
+                    roomInServer.getCabinetsFromDb((cList) -> {
+                        for (Integer c : cList) {
+                            if (cabinetsManager.checkIsAlive(c)) {
+                                var cab = cabinetsManager.GetOrCreateCabinet(c);
+                                cabinets.add(cab);
+                            } else {
+                                var msg2 = logStr("ignore cabinet<{}> : not alive", c);
+                                if (withLog) {
+                                    log.error(msg2);
+                                    uaAlarmEventService.failureEvent(V3RoomsManager.this, msg2);
+                                } else {
+                                    log.debug(msg2);
+                                    uaAlarmEventService.debugEvent(V3RoomsManager.this, msg2);
+                                }
+                            }
+                        }
+                    });
+                    cabinetQueryService.removeV3RoomSync(id);
+                });
+
+                var msg2 = logStr("sendSyncToCabinets:{}", cabinets);
+                log.info(msg2);
+                uaAlarmEventService.successEvent(V3RoomsManager.this, msg2);
+                cabinets.forEach(c -> {
+                    c.executeV3Sync();
+                });
+
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                var msg = logStr("fail to updateChangedRooms",t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(V3RoomsManager.this, msg);
+            }
+        }, executor);
     }
 
 
@@ -110,15 +251,24 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
     public void started() {
         super.started();
 //        GetOrCreateRoom(UUID.randomUUID(), 1213);
-        Refresh();
+        RefreshV3RoomsFromDb();
+    }
+
+    @Scheduled(fixedDelay = 1000 * 60) // 每1分钟刷新一次
+    public void checkDbStatus(){
+        if (!this.autoDiscoverChangedRoom || !this.isRunning()) {
+            return;
+        }
+        this.updateChangedRooms(false);
     }
 
     @Scheduled(fixedDelay = 600 * 1000) // 每十分钟同步一次
-    public void Refresh() {
+    public void RefreshV3RoomsFromDb() {
         if (!this.isRunning()) {
             return;
         }
-        log.trace("Refresh");
+        log.info(logStr("RefreshV3RoomsFromDb"));
+
         Futures.addCallback(cabinetQueryService.getAllV3Room(), new FutureCallback<List<RoomUnitV3>>() {
             @Override
             public void onSuccess(List<RoomUnitV3> result) {
@@ -130,14 +280,17 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
                     remainRoomsId.remove(id);
                 });
                 for (var r : remainRoomsId) {
-                    log.info("房间<{}>已经不存在于数据库中", r);
+                    log.info("V3Room<{}> not exist in DB anymore!", r);
                     removeProperty(r.toString());
                 }
+                uaAlarmEventService.successEvent(V3RoomsManager.this, logStr("RefreshV3RoomsFromDb success"));
             }
 
             @Override
             public void onFailure(Throwable t) {
-                log.error("获取所有V3房间出错!", t);
+                var msg = logStr("fail to RefreshV3RoomsFromDb!", t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(V3RoomsManager.this, msg);
             }
         }, executor);
     }
@@ -158,7 +311,10 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
 
         protected Variant[] onMethodCall(UaHelperUtil.UaMethodDeclare declared, Variant[] input) throws StatusException {
             if (declared == methods.refreshV3RoomsFromDb) {
-                this.comp.Refresh();
+                this.comp.RefreshV3RoomsFromDb();
+                return null;
+            }else if(declared == methods.updateChangedRooms){
+                this.comp.updateChangedRooms(true);
                 return null;
             }
             return super.onMethodCall(declared, input);
@@ -170,7 +326,8 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
 
-            refreshV3RoomsFromDb();
+            refreshV3RoomsFromDb(),
+            updateChangedRooms();
 
 
             private UaHelperUtil.MethodArgument[] in = null;

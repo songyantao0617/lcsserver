@@ -29,6 +29,32 @@ message Dt8Command{
   int32 dt8ActionParam2 = 3;
 }
 
+//V3 房间与灯具布局
+message V3RoomLightInfo{
+  message TargetLight{
+    Uuid lightUuid = 1;
+    int32 cabinetId = 2;
+    string ipAddress = 3;
+  }
+  message Room{
+    Uuid uuid = 1;
+    string name = 2;
+    string description = 3;
+    repeated TargetLight targetLights = 4;
+  }
+  repeated Room rooms = 1;
+}
+
+message V3RoomTriggerInfo{
+  message Trigger{
+    Uuid triggerUuid = 1;
+    string triggerType = 2;
+    Uuid roomUuid = 3;
+    string triggerConfig = 4;
+  }
+  repeated Trigger triggers = 1;
+}
+
 /*****************************************************************************/
 /*************北向实时数据包*****************************************************/
 /*****************************************************************************/
@@ -157,6 +183,8 @@ message ActionWithFeedbackRequest{
     SaveStation saveStation = 7;
     SetSysTime setSysTime = 8;
     DbSync dbSync = 9;
+    V3RoomUpdate v3RoomUpdate = 10;
+    V3RoomTriggerUpdate v3RoomTriggerUpdate = 11;
   }
   //闪烁命令
   message Blink{
@@ -195,6 +223,12 @@ message ActionWithFeedbackRequest{
   message DbSync{
     int32 flag = 1;
   }
+  message V3RoomUpdate{
+    V3RoomLightInfo v3RoomLightInfo = 1;
+  }
+  message V3RoomTriggerUpdate{
+    V3RoomTriggerInfo v3RoomTriggerInfo = 1;
+  }
 }
 
 
@@ -211,6 +245,8 @@ message AsyncActionFeedback{
     SaveStation saveStation = 7;
     SetSysTime setSysTime = 8;
     DbSync dbSync = 9;
+    V3RoomUpdate v3RoomUpdate = 10;
+    V3RoomTriggerUpdate v3RoomTriggerUpdate = 11;
   }
   message Blink{
 
@@ -234,6 +270,18 @@ message AsyncActionFeedback{
   }
   message DbSync{
     string message = 1;
+  }
+  message V3RoomUpdate{
+    repeated Uuid updatedRooms = 1;
+    repeated Uuid removedRooms = 2;
+    repeated Uuid unChangedRooms = 3;
+  }
+  message V3RoomTriggerUpdate{
+    message Feedback{
+      Uuid triggerUuid = 1;
+      string msg = 2;
+    }
+    repeated Feedback feedback = 1;
   }
 }
 
@@ -363,3 +411,19 @@ message ToServerMessage{
   Headers headers = 3;
   google.protobuf.Any payload = 4;  //如果为回应，封装 Response
 }
+
+
+//message DB_cabinetV2{
+//  bool syncFlag = 1;
+//  int32 cabinet_ID = 2;
+//  string name = 3;
+//  string ip_address = 4;
+//  string description = 5;
+//  string version = 6;
+//  int64 lastAlive = 7;
+//  int64 lastSync = 8;
+//  int32 axis_x = 9;
+//  int32 axis_y = 10;
+//  int32 axis_z = 11;
+//}
+

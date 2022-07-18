@@ -5,7 +5,9 @@ import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.Util;
 
+import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.AsyncActionFeedback> {
     public static final String TypeUrl = "type.googleapis.com/AsyncActionFeedback";
@@ -40,6 +42,12 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
                 break;
             case LcsProtos.AsyncActionFeedback.DBSYNC_FIELD_NUMBER:
                 feedBack = new DbSync(v.getDbSync());
+                break;
+            case LcsProtos.AsyncActionFeedback.V3ROOMUPDATE_FIELD_NUMBER:
+                feedBack = new V3RoomUpdate(v.getV3RoomUpdate());
+                break;
+            case LcsProtos.AsyncActionFeedback.V3ROOMTRIGGERUPDATE_FIELD_NUMBER:
+                feedBack = new V3RoomTriggerUpdate(v.getV3RoomTriggerUpdate());
                 break;
             default:
                 feedBack = null;
@@ -103,6 +111,10 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
             builder.setSetSysTime(((SetSysTime) this.feedBack).getPb());
         } else if (this.feedBack instanceof DbSync) {
             builder.setDbSync(((DbSync) this.feedBack).getPb());
+        } else if(this.feedBack instanceof V3RoomUpdate){
+            builder.setV3RoomUpdate(((V3RoomUpdate) this.feedBack).getPb());
+        }else if(this.feedBack instanceof V3RoomTriggerUpdate){
+            builder.setV3RoomTriggerUpdate((((V3RoomTriggerUpdate)this.feedBack).getPb()));
         }
         return builder;
     }
@@ -164,6 +176,7 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
             this.countOfDo = countOfDo;
             this.countOfRoom = countOfRoom;
         }
+
         public SendLevelInstruction(LcsProtos.AsyncActionFeedback.SendLevelInstruction pb) {
             this.countOfRoom = pb.getCountOfRoom();
             this.countOfDo = pb.getCountOfDo();
@@ -232,14 +245,11 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
         @Override
         LcsProtos.AsyncActionFeedback.SaveStation getPb() {
             return LcsProtos.AsyncActionFeedback.SaveStation.newBuilder()
-
                     .build();
         }
     }
 
     public static class SetSysTime extends ActionFeedBack<LcsProtos.AsyncActionFeedback.SetSysTime> {
-
-
         final long currentTime;
 
         public SetSysTime(long currentTime) {
@@ -278,6 +288,129 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
         LcsProtos.AsyncActionFeedback.DbSync getPb() {
             return LcsProtos.AsyncActionFeedback.DbSync.newBuilder()
                     .setMessage(this.msg)
+                    .build();
+        }
+    }
+
+    public static class V3RoomUpdate extends ActionFeedBack<LcsProtos.AsyncActionFeedback.V3RoomUpdate> {
+
+        public V3RoomUpdate(List<UUID> updatedRooms, List<UUID> removedRooms, List<UUID> unChangedRooms) {
+            this.updatedRooms = updatedRooms;
+            this.removedRooms = removedRooms;
+            this.unChangedRooms = unChangedRooms;
+        }
+
+        public List<UUID> getUpdatedRooms() {
+            return updatedRooms;
+        }
+
+        public List<UUID> getRemovedRooms() {
+            return removedRooms;
+        }
+
+        public List<UUID> getUnChangedRooms() {
+            return unChangedRooms;
+        }
+
+        @Override
+        public String toString() {
+            return "V3RoomUpdate{" +
+                    "updatedRooms=" + updatedRooms +
+                    ", removedRooms=" + removedRooms +
+                    ", unChangedRooms=" + unChangedRooms +
+                    '}';
+        }
+
+        final List<UUID> updatedRooms;
+        final List<UUID> removedRooms;
+        final List<UUID> unChangedRooms;
+
+
+        public V3RoomUpdate(LcsProtos.AsyncActionFeedback.V3RoomUpdate pb) {
+            this.updatedRooms = pb.getUpdatedRoomsList().stream().map(Util::ToUuid).collect(Collectors.toList());
+            this.removedRooms = pb.getRemovedRoomsList().stream().map(Util::ToUuid).collect(Collectors.toList());
+            this.unChangedRooms = pb.getUnChangedRoomsList().stream().map(Util::ToUuid).collect(Collectors.toList());
+        }
+
+
+        @Override
+        LcsProtos.AsyncActionFeedback.V3RoomUpdate getPb() {
+            return LcsProtos.AsyncActionFeedback.V3RoomUpdate.newBuilder()
+                    .addAllUpdatedRooms(this.updatedRooms.stream().map(Util::ToPbUuid).collect(Collectors.toList()))
+                    .addAllRemovedRooms(this.removedRooms.stream().map(Util::ToPbUuid).collect(Collectors.toList()))
+                    .addAllUnChangedRooms(this.unChangedRooms.stream().map(Util::ToPbUuid).collect(Collectors.toList()))
+                    .build();
+        }
+    }
+
+    public static class V3RoomTriggerUpdate extends ActionFeedBack<LcsProtos.AsyncActionFeedback.V3RoomTriggerUpdate> {
+
+        public static class Feedback{
+            public UUID getTriggerUuid() {
+                return triggerUuid;
+            }
+
+            public String getMsg() {
+                return msg;
+            }
+
+            public Feedback(UUID triggerUuid, String msg) {
+                this.triggerUuid = triggerUuid;
+                this.msg = msg;
+            }
+
+            public Feedback(LcsProtos.AsyncActionFeedback.V3RoomTriggerUpdate.Feedback pb) {
+                this.triggerUuid = Util.ToUuid(pb.getTriggerUuid());
+                this.msg = pb.getMsg();
+            }
+
+            public LcsProtos.AsyncActionFeedback.V3RoomTriggerUpdate.Feedback getPb(){
+                return LcsProtos.AsyncActionFeedback.V3RoomTriggerUpdate.Feedback.newBuilder()
+                        .setTriggerUuid(Util.ToPbUuid(this.triggerUuid))
+                        .setMsg(this.msg)
+                        .build();
+            }
+
+            @Override
+            public String toString() {
+                return "Feedback{" +
+                        "triggerUuid=" + triggerUuid +
+                        ", msg='" + msg + '\'' +
+                        '}';
+            }
+
+            UUID triggerUuid;
+            String msg;
+        }
+
+        public V3RoomTriggerUpdate(List<Feedback> feedbacks) {
+            this.feedbacks = feedbacks;
+        }
+
+        public List<Feedback> getFeedbacks() {
+            return feedbacks;
+        }
+
+
+        @Override
+        public String toString() {
+            return "V3RoomTriggerUpdate{" +
+                    "feedbacks=" + feedbacks +
+                    '}';
+        }
+
+        final List<Feedback> feedbacks;
+
+
+        public V3RoomTriggerUpdate(LcsProtos.AsyncActionFeedback.V3RoomTriggerUpdate pb) {
+            this.feedbacks = pb.getFeedbackList().stream().map(Feedback::new).collect(Collectors.toList());
+        }
+
+
+        @Override
+        LcsProtos.AsyncActionFeedback.V3RoomTriggerUpdate getPb() {
+            return LcsProtos.AsyncActionFeedback.V3RoomTriggerUpdate.newBuilder()
+                    .addAllFeedback(this.feedbacks.stream().map(Feedback::getPb).collect(Collectors.toList()))
                     .build();
         }
     }

@@ -3,7 +3,7 @@ package com.pxccn.PxcDali2.server.database.modelManual;
 
 import java.io.Serializable;
 
-public class FUNC_getV3LightsListFromRoomUuid implements Serializable {
+public class TargetLight implements Serializable {
     private static final long serialVersionUID = 1L;
     String lightUUID;
     int cabinet_ID;
@@ -35,7 +35,7 @@ public class FUNC_getV3LightsListFromRoomUuid implements Serializable {
 
     @Override
     public String toString() {
-        return "FUNC_getV3LightsListFromRoomUuid{" +
+        return "TargetLight{" +
                 "lightUUID=" + lightUUID +
                 ", cabinet_ID=" + cabinet_ID +
                 ", ip_address='" + ip_address + '\'' +

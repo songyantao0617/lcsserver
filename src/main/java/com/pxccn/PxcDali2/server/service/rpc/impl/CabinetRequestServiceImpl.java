@@ -42,7 +42,6 @@ import java.util.function.Consumer;
 @Service
 @Slf4j
 public class CabinetRequestServiceImpl implements CabinetRequestService, InitializingBean {
-    //////////////////////////
 //    private ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
     private final ConcurrentMap<UUID, Task> pending = new ConcurrentHashMap<>();
     @Autowired
@@ -267,6 +266,48 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
         }, MoreExecutors.directExecutor());
     }
 
+
+    /*
+    *
+    *     public ListenableFuture<AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction> sendBroadcastCommand(int terminalIndex, Dali2LightCommandModel dali2LightCommandModel) {
+        log.trace("sendBroadcastCommand({}): terminalIndex={},dali2LightCommandModel={}", this.Name.get(), terminalIndex, dali2LightCommandModel);
+        SettableFuture<AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction> future = SettableFuture.create();
+        var f = this.cabinetRequestService.asyncSendWithAsyncFeedback(
+                RpcTarget.ToCabinet(this.CabinetId.get()),
+                ActionWithFeedbackRequestWrapper.SendBroadcastLevelInstruction(
+                        Util.NewCommonHeaderForClient(),
+                        terminalIndex,
+                        dali2LightCommandModel,
+                        new Dt8CommandModel(Dt8CommandModel.Instructions.None, 0, 0)),
+                (ResponseWrapper) -> {
+                    log.trace("控制柜({})收到灯具广播命令->{}", Name.get(), dali2LightCommandModel);
+                }, 20000);
+        Futures.addCallback(f, new FutureCallback<AsyncActionFeedbackWrapper>() {
+            @Override
+            public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
+                if (result == null || result.getFeedback() == null) {
+                    log.error("内部错误,未返回有效内容");
+                    return;
+                }
+                if (result.getFeedback() instanceof AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction) {
+                    var cnt = ((AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction) result.getFeedback()).getCountOfLights();
+                    log.debug("控制柜({})执行广播命令成功，涉及数量：{}", Name.get(), cnt);
+                    future.set((AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction) result.getFeedback());
+                } else {
+                    future.setException(new IllegalStateException("控制器未返回有效数据"));
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                log.error("执行命令失败：{}", t.getMessage());
+                future.setException(t);
+            }
+        }, MoreExecutors.directExecutor());
+        return future;
+    }
+    *
+    * */
     public ListenableFuture<AsyncActionFeedbackWrapper> asyncSendWithAsyncFeedback(RpcTarget target,
                                                                                    ActionWithFeedbackRequestWrapper request,
                                                                                    @Nullable Consumer<ResponseWrapper> sendSuccess,
@@ -274,7 +315,7 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
     ) {
         log.trace("asyncSendWithAsyncFeedback: target={},request={},timeout={}", target.toFriendlyString(), request.getAction().getClass().getSimpleName(), timeout);
         if (timeout < 1000) {
-            timeout = 300000;
+            timeout = 30000;
         }
         SettableFuture<AsyncActionFeedbackWrapper> feedbackFuture = SettableFuture.create();
         var t = new Task();
@@ -282,10 +323,9 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
         t.timeout = timeout;
         this.pending.put(request.getRequestId(), t);
         ScheduledFuture<?> scheduleFuture = this.timeoutExecutor.schedule(() -> {
-            log.debug("异步反馈超时触发");
-            var f = this.pending.remove(request.getRequestId());
-            if (f != null) {
-                feedbackFuture.setException(new TimeoutException("异步反馈超时！"));
+            log.debug("Time out waiting for async result");
+            if (this.pending.remove(request.getRequestId()) != null) {
+                feedbackFuture.setException(new TimeoutException("Time out waiting for async result"));
             }
         }, timeout, TimeUnit.MILLISECONDS);
         t.schedule = scheduleFuture;
@@ -295,7 +335,7 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
                 , new FutureCallback<>() {
                     @Override
                     public void onSuccess(@Nullable ResponseWrapper result) {
-                        log.debug("<{}> 收到请求<{}>", target.toFriendlyString(), request.getAction().getClass().getSimpleName());
+                        log.debug("<{}> receive request <{}>", target.toFriendlyString(), request.getAction().getClass().getSimpleName());
                         if (sendSuccess != null) {
                             sendSuccess.accept(result);
                         }
@@ -334,7 +374,7 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
                 else
                     t.consumer.setException(new IllegalStateException(error));
             } else {
-                log.warn("反馈信息迟到:{}", feedbackWrapper);
+                log.warn("feedback timeout or not belong to this server:{}", feedbackWrapper);
             }
         } catch (Throwable e) {
             log.error("严重错误，无法处理!", e);

@@ -1,6 +1,7 @@
 package com.pxccn.PxcDali2.server.space.cabinets;
 
 import com.prosysopc.ua.nodes.UaNode;
+import com.pxccn.PxcDali2.common.LcsExecutors;
 import com.pxccn.PxcDali2.server.events.CabinetDetailUploadEvent;
 import com.pxccn.PxcDali2.server.events.CabinetSimpleEvent;
 import com.pxccn.PxcDali2.server.events.CabinetStatusMqEvent;
@@ -16,7 +17,9 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.util.Arrays;
+import java.util.concurrent.ExecutorService;
 
 //@FwComponentAnnotation
 @Component
@@ -24,11 +27,37 @@ import java.util.Arrays;
 public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManagerNode> {
     @Autowired
     CabinetRequestService cabinetRequestService;
+    ExecutorService executorService = LcsExecutors.newWorkStealingPool(16, getClass());
 
-    @Scheduled(cron = "0/5 * * * * ?")
-    private void checkCabinetAlive() {
-        log.trace("checkCabinetAlive");
+
+    FwProperty<Integer> count_AllCabinets;
+    FwProperty<Integer> count_AllOnlineCabinets;
+    FwProperty<Integer> count_AllOfflineCabinets;
+
+    @PostConstruct
+    public void init(){
+        this.count_AllCabinets = addProperty(0,"count_AllCabinets");
+        this.count_AllOnlineCabinets = addProperty(0,"count_AllOnlineCabinets");
+        this.count_AllOfflineCabinets = addProperty(0,"count_AllOfflineCabinets");
+    }
+
+    @Scheduled(fixedDelay = 1000*5) // 每五秒钟检查存活
+    private void scheduleCheckCabinetAlive() {
+        log.trace(logStr("scheduleCheckCabinetAlive"));
         Arrays.stream(this.getAllCabinet()).forEach(Cabinet::checkIsNotAlive);
+        updateSummary();
+    }
+
+    @Scheduled(fixedDelay = 1000*60*30) // 每半小时执行一次灯具房间信息更新
+    private void scheduleUpdateAllOnlineCabinetLightsAndRoomsInfo() {
+        log.trace(logStr("scheduleUpdateAllOnlineCabinetLightsAndRoomsInfo"));
+        updateAllOnlineCabinetLightsAndRoomsInfo();
+    }
+
+    @Scheduled(fixedDelay = 1000*60*20) // 每半个小时清空一次实时状态缓存
+    private void schedulePurgeStatusCache(){
+        log.trace(logStr("schedulePurgeStatusCache"));
+        Arrays.stream(this.getAllOnlineCabinet()).forEach(Cabinet::purgeCacheForUpdateAllRealtimeStatus);
     }
 
     @EventListener
@@ -37,10 +66,19 @@ public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManag
         var cabinetId = message.getCabinetId();
         switch (message.getEvent()) {
             case CabinetInfoChange:
-                log.debug("控制柜<{}>信息变更", cabinetId);
+                log.debug("Cabinet<{}> Info Changed", cabinetId);
                 this.GetOrCreateCabinet(cabinetId).AskToUpdateCabinetInfo();
                 break;
         }
+    }
+
+    public void updateSummary(){
+        int all = this.getAllCabinet().length;
+        int online = this.getAllOnlineCabinet().length;
+        int offline = this.getAllOfflineCabinet().length;
+        this.count_AllCabinets.set(all);
+        this.count_AllOfflineCabinets.set(offline);
+        this.count_AllOnlineCabinets.set(online);
     }
 
     @EventListener
@@ -56,8 +94,26 @@ public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManag
         cabinet.onUpdateStatus(message);
     }
 
+    /**
+     * 是否存在某控制柜
+     * @param cabinetId
+     * @return
+     */
     public boolean checkHasCabinet(int cabinetId) {
         return this.getProperty(String.valueOf(cabinetId)) != null;
+    }
+
+    /**
+     * 指定控制柜是否在线
+     * @param cabinetId
+     * @return
+     */
+    public boolean checkIsAlive(int cabinetId){
+        var cabinet = this.getProperty(String.valueOf(cabinetId));
+        if(cabinet == null){
+            return false;
+        }
+        return ((Cabinet)cabinet.get()).isAlive();
     }
 
     public Cabinet GetOrCreateCabinet(int cabinetId) {
@@ -87,6 +143,11 @@ public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManag
         return Arrays.stream(getAllCabinet()).filter(c -> !c.isAlive()).toArray(Cabinet[]::new);
     }
 
+    public void updateAllOnlineCabinetLightsAndRoomsInfo() {
+        log.trace(logStr("updateAllOnlineCabinetLightsAndRoomsInfo"));
+        Arrays.stream(getAllOnlineCabinet()).forEach(Cabinet::AskToUpdateLightsAndRoomInfo);
+    }
+
     public void started() {
         super.started();
 //        GetOrCreateCabinet(123);
@@ -111,6 +172,9 @@ public class CabinetsManager extends FwUaComponent<CabinetsManager.CabinetsManag
 
         protected CabinetsManagerNode(CabinetsManager uaComponent, String qname) {
             super(uaComponent, qname);
+            addProperty(uaComponent.count_AllCabinets);
+            addProperty(uaComponent.count_AllOfflineCabinets);
+            addProperty(uaComponent.count_AllOnlineCabinets);
             addAdditionalDeclares(folders.values());
         }
 

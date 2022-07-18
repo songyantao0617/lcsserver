@@ -3,7 +3,12 @@ package com.pxccn.PxcDali2.server.space.lights;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
+import com.prosysopc.ua.stack.builtintypes.Variant;
+import com.prosysopc.ua.stack.core.Identifiers;
+import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
+import com.pxccn.PxcDali2.MqSharePack.model.Dt8CommandModel;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.ActionWithFeedbackRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.DetailInfoRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
@@ -17,6 +22,7 @@ import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
 import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
 import com.pxccn.PxcDali2.server.space.cabinets.Cabinet;
+import com.pxccn.PxcDali2.server.space.cabinets.CabinetsManager;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -36,6 +42,8 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
     @Autowired
     CabinetRequestService cabinetRequestService;
 
+    @Autowired
+    CabinetsManager cabinetsManager;
     ExecutorService executorService = LcsExecutors.newWorkStealingPool(5, getClass());
 
     @EventListener
@@ -227,14 +235,49 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
     }
 
     protected static class LCS_GlobalLightsManagerNode extends LCS_ComponentFastObjectNode {
-
+        LightsManager comp;
         protected LCS_GlobalLightsManagerNode(FwUaComponent uaComponent, String qname) {
             super(uaComponent, qname);
-            addAdditionalDeclares(folders.values());
+            addAdditionalDeclares(folders.values()
+                    ,methods.values()
+            );
+            comp = (LightsManager)uaComponent;
         }
 
         private enum folders implements UaHelperUtil.UaFolderDeclare {
             lights
+        }
+        private enum methods implements UaHelperUtil.UaMethodDeclare {
+            fetchAllLightsDetail();
+
+            private UaHelperUtil.MethodArgument[] in = null;
+            private UaHelperUtil.MethodArgument[] out = null;
+
+            methods(UaHelperUtil.MethodArgument[] inputArguments, UaHelperUtil.MethodArgument[] outputArguments) {
+                this();
+                this.in = inputArguments;
+                this.out = outputArguments;
+            }
+
+            methods() {
+            }
+
+            @Override
+            public UaHelperUtil.MethodArgument[] getInputArguments() {
+                return this.in;
+            }
+
+            @Override
+            public UaHelperUtil.MethodArgument[] getOutputArguments() {
+                return this.out;
+            }
+        }
+        protected Variant[] onMethodCall(UaHelperUtil.UaMethodDeclare declared, Variant[] input) throws StatusException {
+            if (declared == methods.fetchAllLightsDetail) {
+                comp.cabinetsManager.updateAllOnlineCabinetLightsAndRoomsInfo();
+                return null;
+            }
+            return super.onMethodCall(declared, input);
         }
     }
 

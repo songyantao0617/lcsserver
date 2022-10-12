@@ -6,9 +6,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
 import com.prosysopc.ua.stack.builtintypes.Variant;
-import com.prosysopc.ua.stack.core.Identifiers;
-import com.pxccn.PxcDali2.MqSharePack.model.Dali2LightCommandModel;
-import com.pxccn.PxcDali2.MqSharePack.model.Dt8CommandModel;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.ActionWithFeedbackRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.DetailInfoRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
@@ -17,6 +14,7 @@ import com.pxccn.PxcDali2.Util;
 import com.pxccn.PxcDali2.common.LcsExecutors;
 import com.pxccn.PxcDali2.server.events.*;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
+import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
@@ -31,41 +29,65 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
+import javax.annotation.PostConstruct;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 
-//@FwComponentAnnotation
+/**
+ * 灯具管理器
+ */
 @Component
 @Slf4j
 public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsManagerNode> {
 
     @Autowired
     CabinetRequestService cabinetRequestService;
+    @Autowired
+    UaAlarmEventService uaAlarmEventService;
 
     @Autowired
     CabinetsManager cabinetsManager;
-    ExecutorService executorService = LcsExecutors.newWorkStealingPool(5, getClass());
+    ExecutorService executorService = LcsExecutors.newWorkStealingPool(8, getClass());
+
+    FwProperty<Integer> count;
+
+    @PostConstruct
+    public void init(){
+        this.count = addProperty(0,"count");
+    }
+
+    public void updateCount(){
+        this.count.set(this.getPropertyCount());
+    }
 
     @EventListener
     public void onCabinetSimpleEvent(CabinetSimpleEvent event) {
-        var message = event.getMessage();
-        var uid = message.getUuid();
-        var cabinetId = message.getCabinetId();
-        switch (message.getEvent()) {
-            case LightInfoChange:
-                log.debug("灯具<{}>信息变更", uid);
-                this.AskToUpdateLightsInfo(Collections.singletonList(uid), cabinetId);
-                break;
-            case LightAdded:
-                log.debug("灯具<{}>创建", uid);
-                this.AskToUpdateLightsInfo(Collections.singletonList(uid), cabinetId);
-                break;
-            case LightRemoved:
-                log.debug("灯具<{}>被移除", uid);
-                this.removeProperty(uid.toString());
-                break;
-        }
-
+        executorService.execute(()->{
+            var message = event.getMessage();
+            var uid = message.getUuid();
+            var cabinetId = message.getCabinetId();
+            String logString = "";
+            switch (message.getEvent()) {
+                case LightInfoChange:
+                    logString = logStr("Light<{}> LightInfoChange", uid);
+                    log.debug(logString);
+                    uaAlarmEventService.debugEvent(this, logString);
+                    this.AskToUpdateLightsInfo(Collections.singletonList(uid), cabinetId);
+                    break;
+                case LightAdded:
+                    logString = logStr("Light<{}> LightAdded", uid);
+                    log.debug(logString);
+                    uaAlarmEventService.debugEvent(this, logString);
+                    this.AskToUpdateLightsInfo(Collections.singletonList(uid), cabinetId);
+                    break;
+                case LightRemoved:
+                    logString = logStr("Light<{}> LightRemoved", uid);
+                    log.debug(logString);
+                    uaAlarmEventService.debugEvent(this, logString);
+                    this.removeProperty(uid.toString());
+                    break;
+            }
+        });
     }
 
     public boolean checkHasLight(UUID lightUuid) {
@@ -84,57 +106,98 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
 
     @EventListener
     public void onDoLightsRealtimeStatusModelEvent(DoLightsRealtimeStatusModelEvent event) {
-        event.getModelList().forEach(m -> {
-            var light = (DoLight) this.GetOrCreateLight(m.id, event.getCabinetId(), LightType.DO);
-            light.onNewStatus(m);
+        executorService.execute(()->{
+            event.getModelList().forEach(m -> {
+                var light = (DoLight) this.GetOrCreateLight(m.id, event.getCabinetId(), LightType.DO);
+                light.onNewStatus(m);
+            });
         });
     }
 
     @EventListener
     public void onLightDetailUploadEvent(LightsDetailUploadEvent event) {
-        int cabinetId = event.getMessage().getCabinetId();
-        event.getMessage().getDali2LightDetailModels().forEach(model -> {
-            var light = (Dali2Light) this.GetOrCreateLight(model.uuid, cabinetId, LightType.DALI2);
-            light.onDetailUpload(model);
-        });
-        event.getMessage().getDoLightDetailModels().forEach(model -> {
-            var light = (DoLight) this.GetOrCreateLight(model.uuid, cabinetId, LightType.DO);
-            light.onDetailUpload(model);
+        executorService.execute(()->{
+            int cabinetId = event.getMessage().getCabinetId();
+            event.getMessage().getDali2LightDetailModels().forEach(model -> {
+                var light = (Dali2Light) this.GetOrCreateLight(model.uuid, cabinetId, LightType.DALI2);
+                light.onDetailUpload(model);
+            });
+            event.getMessage().getDoLightDetailModels().forEach(model -> {
+                var light = (DoLight) this.GetOrCreateLight(model.uuid, cabinetId, LightType.DO);
+                light.onDetailUpload(model);
+            });
         });
     }
 
+//    /**
+//     * 同步修改灯具名称
+//     * @param lightUUID
+//     * @param newName
+//     */
+//    public ChangeLightNameResult changeLightNameSync(UUID lightUUID,String newName){
+//        log.trace(logStr("changeLightName: lightUUID={},newName={}",lightUUID,newName));
+//        var light = this.getLightByUUID(lightUUID);
+////        if(light == null){
+////            this.
+////        }
+//    }
+//    public static class ChangeLightNameResult{
+//        public final boolean success;
+//        public final String reason;
+//        ChangeLightNameResult(){
+//            this.success = true;
+//            this.reason = "";
+//        }
+//        ChangeLightNameResult(String reason){
+//            this.success = false;
+//            this.reason = reason;
+//        }
+//    }
 
     public void AskToUpdateLightsInfo(List<UUID> lightsUuid, int cabinetId) {
         Futures.addCallback(cabinetRequestService.asyncSend(RpcTarget.ToCabinet(cabinetId), new DetailInfoRequestWrapper(Util.NewCommonHeaderForClient(), false, lightsUuid)), new FutureCallback<ResponseWrapper>() {
             @Override
             public void onSuccess(@Nullable ResponseWrapper result) {
-                log.info("从控制柜<{}>获取灯具详细信息成功", cabinetId);
+                var msg = logStr("execute AskToUpdateLightsInfo command success from cabinet {}", cabinetId);
+                log.info(msg);
+                uaAlarmEventService.successEvent(LightsManager.this, msg);
             }
 
             @Override
             public void onFailure(Throwable t) {
-                log.error("无法从控制柜<{}>获取灯具详细信息:{}", cabinetId, t.getMessage());
+                var msg = logStr("Can not execute AskToUpdateLightsInfo command from cabinet{} ", cabinetId, t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(LightsManager.this, msg);
             }
         }, MoreExecutors.directExecutor());
     }
 
     public void AskToBlinkLight(List<UUID> lightsUuid, boolean enable, int cabinetId) {
+        var msg = logStr("AskToBlinkLight:lightsUuid={},enable={},cabinetId={}",lightsUuid,enable,cabinetId);
+        log.trace(msg);
+        uaAlarmEventService.debugEvent(this, msg);
+
         Futures.addCallback(cabinetRequestService.asyncSendWithAsyncFeedback(RpcTarget.ToCabinet(cabinetId),
                 ActionWithFeedbackRequestWrapper.Blink(Util.NewCommonHeaderForClient(), lightsUuid.toArray(new UUID[0]), enable), (ResponseWrapper) -> {
-                    log.debug("控制柜<{}>收到闪烁指令", cabinetId);
+                    log.debug("Cabinet<{}> received AskToBlinkLight command", cabinetId);
                 }, 20000), new FutureCallback<AsyncActionFeedbackWrapper>() {
             @Override
             public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
                 if ((result == null || result.getFeedback() == null) && result.getFeedback() instanceof AsyncActionFeedbackWrapper.Blink) {
-                    log.error("内部错误,未返回有效内容");
+                    log.error("Internal Error");
+                    uaAlarmEventService.failureEvent(LightsManager.this, "Internal Error");
                     return;
                 }
-                log.info("闪烁成功");
+                var msg2 = "execute AskToBlinkLight command success -- " + msg;
+                log.info(msg2);
+                uaAlarmEventService.successEvent(LightsManager.this, msg2);
             }
 
             @Override
             public void onFailure(Throwable t) {
-                log.error("闪烁失败！:{}", t.getMessage());
+                var msg = logStr("fail to execute AskToBlinkLight command", t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(LightsManager.this, msg);
             }
         }, MoreExecutors.directExecutor());
     }
@@ -176,9 +239,7 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
 
     }
 
-    public LightBase GetOrCreateLight(UUID lightUuid) {
-        return this.GetOrCreateLight(lightUuid, null, null);
-    }
+
 
     public LightBase[] findAllLightsWithCabinetId(int cabinetId) {
         return Arrays.stream(this.getAllProperty(LightBase.class, false))
@@ -189,10 +250,16 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
 
     @EventListener
     public void onCabinetAliveChangedEvent(CabinetAliveChangedEvent event) {
-        var cabinet = ((Cabinet) event.getSource());
-        for (var l : this.findAllLightsWithCabinetId(cabinet.getCabinetId())) {
-            l.cabinetStatusChanged(event.isOnLine());
-        }
+        executorService.execute(()->{
+            var cabinet = ((Cabinet) event.getSource());
+            for (var l : this.findAllLightsWithCabinetId(cabinet.getCabinetId())) {
+                l.cabinetStatusChanged(event.isOnLine());
+            }
+        });
+    }
+
+    public LightBase GetOrCreateLight(UUID lightUuid) {
+        return this.GetOrCreateLight(lightUuid, null, null);
     }
 
     public LightBase GetOrCreateLight(UUID lightUuid, Integer cabinetId, LightType type) {
@@ -201,13 +268,13 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
         synchronized (this) {
             p = this.getProperty(lightPropName);
             if (p == null) {
-                Assert.notNull(type, "内部错误,灯具没有被注册");
+                Assert.notNull(type, "Internal Error, the light has not been registered");
                 LightBase light = null;
                 if (type == LightType.DALI2)
                     light = context.getBean(Dali2Light.class);
                 else if (type == LightType.DO)
                     light = context.getBean(DoLight.class);
-                Assert.notNull(light, "未知灯具类型");
+                Assert.notNull(light, "unknown light type");
                 light.setUuid(lightUuid);
                 if (cabinetId != null)
                     light.setCabinetId(cabinetId);
@@ -218,6 +285,7 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
         if (cabinetId != null && cabinetId.intValue() != light.getCabinetId()) {
             light.setCabinetId(cabinetId.intValue());
         }
+        updateCount();
         return light;
     }
 
@@ -236,17 +304,20 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
 
     protected static class LCS_GlobalLightsManagerNode extends LCS_ComponentFastObjectNode {
         LightsManager comp;
+
         protected LCS_GlobalLightsManagerNode(FwUaComponent uaComponent, String qname) {
             super(uaComponent, qname);
+            comp = (LightsManager) uaComponent;
+            addProperty(comp.count);
             addAdditionalDeclares(folders.values()
-                    ,methods.values()
+                    , methods.values()
             );
-            comp = (LightsManager)uaComponent;
         }
 
         private enum folders implements UaHelperUtil.UaFolderDeclare {
             lights
         }
+
         private enum methods implements UaHelperUtil.UaMethodDeclare {
             fetchAllLightsDetail();
 
@@ -272,6 +343,7 @@ public class LightsManager extends FwUaComponent<LightsManager.LCS_GlobalLightsM
                 return this.out;
             }
         }
+
         protected Variant[] onMethodCall(UaHelperUtil.UaMethodDeclare declared, Variant[] input) throws StatusException {
             if (declared == methods.fetchAllLightsDetail) {
                 comp.cabinetsManager.updateAllOnlineCabinetLightsAndRoomsInfo();

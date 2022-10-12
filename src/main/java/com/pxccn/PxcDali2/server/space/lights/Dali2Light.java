@@ -37,10 +37,14 @@ public class Dali2Light extends LightBase {
 
     @Override
     void cabinetStatusChanged(boolean isOnline) {
-        log.debug("灯具<{}>控制柜状态改变: isOnline={}", lightName.get(), isOnline);
+        var msg = logStr("Cabinet state change: isOnline={}",isOnline);
         if (!isOnline) {
+            log.warn(msg);
+            uaAlarmEventService.failureEvent(this,msg);
             this.subscribe_level.set(-1.0);
-            this.subscribe_fault.set("控制柜离线，无法通信");
+            this.subscribe_fault.set("cabinet offline");
+        }else{
+            log.debug(msg);
         }
     }
 
@@ -55,8 +59,8 @@ public class Dali2Light extends LightBase {
     }
 
     @PostConstruct
-    public void post() {
-        super.post();
+    public void init() {
+        super.init();
         lightType = addProperty("DALI2", "lightType");
         subscribe_level = addProperty(0.0, "subscribe_level", FwPropFlag.READ_WRITE);
         subscribe_fault = addProperty("", "subscribe_fault");
@@ -66,7 +70,9 @@ public class Dali2Light extends LightBase {
     public void onChanged(FwProperty property, FwContext context) {
         super.onChanged(property, context);
         if (context == FwContext.BY_OPCUA && property == this.subscribe_level) {
-            log.trace("通过节点修改灯具<{}>亮度值：{}", this.lightName.get(), this.subscribe_level.get());
+            var m = logStr("brightness change to {} by ua node",this.subscribe_level.get());
+            log.debug(m);
+            uaAlarmEventService.debugEvent(this,m);
             var value = this.subscribe_level.get();
             if (value < 0 || value > 100) {
                 throw new RuntimeException("", new StatusException(StatusCodes.Bad_OutOfRange));
@@ -80,7 +86,7 @@ public class Dali2Light extends LightBase {
 
 
     public void onNewStatus(Dali2LightRealtimeStatusModel lrs) {
-        log.debug("onNewStatus<{}> :{}", lightName.get(), lrs);
+        log.trace(logStr("onNewStatus: lrs={}",lrs));
         super.onNewStatus(lrs);
         this.subscribe_level.set(lrs.brightness);
         this.subscribe_fault.set(lrs.getErrorMessage() != null ? lrs.getErrorMessage() : "");
@@ -91,7 +97,7 @@ public class Dali2Light extends LightBase {
     }
 
     public void onSetNewAddress(int newAddress) {
-        log.trace("onSetNewAddress({}): newAddress={}", this.lightName.get(), newAddress);
+        log.trace(logStr("onSetNewAddress: newAddress={}", newAddress));
         this.actionFeedback.set("");
         var f = this.cabinetRequestService.asyncSendWithAsyncFeedback(
                 RpcTarget.ToCabinet(this.cabinetId.get()),
@@ -100,24 +106,31 @@ public class Dali2Light extends LightBase {
                         Collections.singleton(this.lightUuid).toArray(UUID[]::new),
                         newAddress),
                 (ResponseWrapper) -> {
-                    log.info("控制柜收到修改短地址指令");
+                    var m = logStr("receive the SetNewAddress command");
+                    log.info(m);
+                    uaAlarmEventService.successEvent(Dali2Light.this,m);
                 }, 20000);
         Futures.addCallback(f, new FutureCallback<>() {
             @Override
             public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
                 if (result == null || result.getFeedback() == null) {
-                    log.error("内部错误,未返回有效内容");
+                    var m = logStr("Internal Error");
+                    log.error(m);
+                    uaAlarmEventService.failureEvent(Dali2Light.this,m);
                     return;
                 }
                 if (result.getFeedback() instanceof AsyncActionFeedbackWrapper.SetShortAddress) {
-                    log.info("修改短地址成功");
+                    var m = logStr("success to execute SetNewAddress");
+                    log.info(m);
+                    uaAlarmEventService.successEvent(Dali2Light.this,m);
                     actionFeedback.set("修改短地址成功,现在为" + newAddress);
                 }
             }
 
             @Override
             public void onFailure(Throwable t) {
-                log.error("修改短地址失败：{}", t.getMessage());
+                var m = logStr("fail to execute SetNewAddress command",t);
+                log.error(m);
                 actionFeedback.set("修改短地址失败:" + t.getMessage());
 
             }
@@ -130,7 +143,11 @@ public class Dali2Light extends LightBase {
             return;
         }
         if(!this.subscribe_fault.get().isEmpty()){
-            alarmNode.activateAlarm(this.lightName.get(),this.description.get(),this.subscribe_fault.get(),500);
+            if (this.subscribe_fault.get().contains("Timed out waiting for response")){
+                // 通信异常，忽略
+            }else{
+                alarmNode.activateAlarm(this.lightName.get(),this.description.get(),this.subscribe_fault.get(),500);
+            }
         }else{
             alarmNode.inactivateAlarm(false);
         }

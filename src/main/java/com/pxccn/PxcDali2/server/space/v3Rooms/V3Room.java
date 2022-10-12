@@ -17,7 +17,7 @@ import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
 import com.pxccn.PxcDali2.server.database.model.RoomUnitV3;
 import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
-import com.pxccn.PxcDali2.server.service.db.CabinetQueryService;
+import com.pxccn.PxcDali2.server.service.db.DatabaseService;
 import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
@@ -47,7 +47,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
     @Autowired
     ConfigurableApplicationContext context;
     @Autowired
-    CabinetQueryService cabinetQueryService;
+    DatabaseService databaseService;
     @Autowired
     V3RoomsManager v3RoomsManager;
     @Autowired
@@ -71,7 +71,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
     List<UUID> missingLights = new ArrayList<>();
 
     @PostConstruct
-    public void post() {
+    public void init() {
         roomName = addProperty("", "roomName");
         description = addProperty("description", "description");
         axis_x = addProperty(0, "axis_x");
@@ -125,6 +125,12 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
 
     }
 
+    /**
+     * 订阅灯具亮度变化 ,变化时回调 onMemberLightChanged
+     *
+     * @param valid 参与订阅的灯具
+     * @param missing 无法命中的灯具UUID
+     */
     private void handleLightsSubscribe(List<LightBase> valid, List<UUID> missing) {
         if (log.isTraceEnabled()) {
             log.trace(logStr("handleLightsSubscribe : valid={},missing={}", valid, missing));
@@ -164,7 +170,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
      * 填入 CorrelateCabinets 后，调用消费函数
      */
     public void getCabinetsFromDb(@Nullable Consumer<List<Integer>> then) {
-        Futures.addCallback(cabinetQueryService.queryCorrelateCabinetIdFromV3RoomId(this.getRoomUuid()), new FutureCallback<List<Integer>>() {
+        Futures.addCallback(databaseService.queryCorrelateCabinetIdFromV3RoomId(this.getRoomUuid()), new FutureCallback<List<Integer>>() {
             @Override
             public void onSuccess(List<Integer> result) {
                 CorrelateCabinets.set(StringUtils.collectionToCommaDelimitedString(result));
@@ -185,7 +191,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
      */
     public void getLightsFromDb(@Nullable Consumer<Void> then) {
         log.trace(logStr("getLightsFromDb"));
-        var f = cabinetQueryService.queryLightsUuidOfV3Room(this.getRoomUuid());
+        var f = databaseService.queryLightsUuidOfV3Room(this.getRoomUuid());
         Futures.addCallback(f, new FutureCallback<List<UUID>>() {
             @Override
             public void onSuccess(List<UUID> result) {
@@ -255,7 +261,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
     }
 
     private void getBasicInfoFromDb(@NonNull Consumer<RoomUnitV3> then) {
-        Futures.addCallback(cabinetQueryService.getV3RoomBasicInfo(this.getRoomUuid()), new FutureCallback<RoomUnitV3>() {
+        Futures.addCallback(databaseService.getV3RoomBasicInfo(this.getRoomUuid()), new FutureCallback<RoomUnitV3>() {
             @Override
             public void onSuccess(@Nullable RoomUnitV3 result) {
                 if (result != null) {
@@ -278,15 +284,19 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
         }, MoreExecutors.directExecutor());
     }
 
-    public void onFetchDetailsNow() {
+    /**
+     * 获取详细信息
+     */
+    public void FetchDetailsNow() {
         log.trace(logStr("onFetchDetailsNow"));
-        Futures.addCallback(cabinetQueryService.getV3RoomBasicInfo(this.getRoomUuid()), new FutureCallback<RoomUnitV3>() {
+        Futures.addCallback(databaseService.getV3RoomBasicInfo(this.getRoomUuid()), new FutureCallback<RoomUnitV3>() {
             @Override
             public void onSuccess(@Nullable RoomUnitV3 result) {
                 if (result != null) {
                     var msg = logStr("getV3RoomBasicInfo : {}", result);
                     log.debug(msg);
                     uaAlarmEventService.debugEvent(V3Room.this, msg);
+                    refresh(result);
                 } else {
                     var msg = logStr("room not exist anymore");
                     log.warn(msg);
@@ -344,7 +354,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
         }
     }
 
-    public void onSendCtlCommand(Dali2LightCommandModel dali2LightCommandModel, Dt8CommandModel dt8CommandModel) {
+    public void SendCtlCommand(Dali2LightCommandModel dali2LightCommandModel, Dt8CommandModel dt8CommandModel) {
         var msg = logStr("onSendCtlCommand: dali2LightCommandModel={},dt8CommandModel={}", dali2LightCommandModel, dt8CommandModel);
         log.trace(msg);
         uaAlarmEventService.debugEvent(this, msg);
@@ -353,7 +363,7 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
         });
     }
 
-    public void onSendGroupAddress() {
+    public void SendGroupAddress() {
         var msg = logStr("onSendGroupAddress");
         log.trace(msg);
         uaAlarmEventService.debugEvent(this, msg);
@@ -436,18 +446,19 @@ public class V3Room extends FwUaComponent<V3Room.V3RoomNode> {
 
         protected Variant[] onMethodCall(UaHelperUtil.UaMethodDeclare declared, Variant[] input) throws StatusException {
             if (declared == methods.blink) {
+                //TODO
 //                comp.blink(BBoolean.make(input[0].booleanValue()));
                 return null;
             } else if (declared == methods.fetchDetailsNow) {
-                this.comp.onFetchDetailsNow();
+                this.comp.FetchDetailsNow();
                 return null;
             } else if (declared == methods.sendCtlCommand) {
                 var Cmd103 = new Dali2LightCommandModel(UaHelperUtil.getEnum(Dali2LightCommandModel.Instructions.class, input[0].intValue()), input[1].intValue());
                 var CmdDt8 = new Dt8CommandModel(UaHelperUtil.getEnum(Dt8CommandModel.Instructions.class, input[2].intValue()), input[3].intValue(), input[4].intValue());
-                this.comp.onSendCtlCommand(Cmd103, CmdDt8);
+                this.comp.SendCtlCommand(Cmd103, CmdDt8);
                 return null;
             } else if (declared == methods.sendGroupAddress) {
-                this.comp.onSendGroupAddress();
+                this.comp.SendGroupAddress();
                 return null;
             } else if (declared == methods.syncToCabinets) {
                 this.comp.syncToCabinets();

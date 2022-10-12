@@ -3,6 +3,7 @@ LcsServer:
   ver: "0.1"
   timeServer: true # 是否负责全场控制器时间同步任务
   autoDiscoverChangedRoom: true # 是否负责自动扫描V3room表status字段
+  autoUpdateOnlineCabinetLightsAndRoomsInfo: true # 是否负责自动执行全场控制器灯具与房间数据上送（兼顾清空边缘测状态缓存）
   dataBaseMaxPoolSize: 16 # 数据库线程数量
   offlineThreshold: 30000 # 缺少心跳多久后判定为离线
 
@@ -11,11 +12,17 @@ LcsServer:
   successEventSeverity: 100
   failureEventSeverity: 1000
 
+  updateAuditInDatabase: true
+
+  otaSourcePath: C:\LCS_OTA\PxcDali2-rt.jar
+  otaTargetPath: /home/sysmik/niagara/modules
+
+  logService: true
 
 spring:
   datasource:
     name: LCS_DB
-    url: "jdbc:sqlserver://172.14.1.13:1433;database=BMW_LightsControl;encrypt=false;trustServerCertificate=true;"
+    url: "jdbc:sqlserver://172.14.1.11:1433;database=BMW_LightsControl;encrypt=false;trustServerCertificate=true;"
     username: sa
     password: sa
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver

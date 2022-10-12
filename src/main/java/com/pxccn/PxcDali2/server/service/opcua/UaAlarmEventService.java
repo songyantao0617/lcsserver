@@ -12,10 +12,13 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/**
+ * OPCUA 事件服务
+ */
 @Component
 @Slf4j
 public class UaAlarmEventService {
-    ExecutorService executorService = Executors.newFixedThreadPool(3);
+    ExecutorService executorService = Executors.newFixedThreadPool(5);
     @Autowired
     OpcuaService opcuaService;
     @Autowired

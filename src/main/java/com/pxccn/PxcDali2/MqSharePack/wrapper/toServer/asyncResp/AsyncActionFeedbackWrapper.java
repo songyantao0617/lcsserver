@@ -2,6 +2,7 @@ package com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToServerQueueMsg;
+import com.pxccn.PxcDali2.MqSharePack.model.FilePackModel;
 import com.pxccn.PxcDali2.Proto.LcsProtos;
 import com.pxccn.PxcDali2.Util;
 
@@ -48,6 +49,9 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
                 break;
             case LcsProtos.AsyncActionFeedback.V3ROOMTRIGGERUPDATE_FIELD_NUMBER:
                 feedBack = new V3RoomTriggerUpdate(v.getV3RoomTriggerUpdate());
+                break;
+            case LcsProtos.AsyncActionFeedback.FILEUPLOAD_FIELD_NUMBER:
+                feedBack = new FileUpload(v.getFileUpload());
                 break;
             default:
                 feedBack = null;
@@ -115,6 +119,8 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
             builder.setV3RoomUpdate(((V3RoomUpdate) this.feedBack).getPb());
         }else if(this.feedBack instanceof V3RoomTriggerUpdate){
             builder.setV3RoomTriggerUpdate((((V3RoomTriggerUpdate)this.feedBack).getPb()));
+        }else if(this.feedBack instanceof FileUpload){
+            builder.setFileUpload(((FileUpload)this.feedBack).getPb());
         }
         return builder;
     }
@@ -414,4 +420,45 @@ public class AsyncActionFeedbackWrapper extends ProtoToServerQueueMsg<LcsProtos.
                     .build();
         }
     }
+
+    public static class FileUpload extends ActionFeedBack<LcsProtos.AsyncActionFeedback.FileUpload>{
+
+        public boolean isSuccess() {
+            return success;
+        }
+
+        public String getErrorMsg() {
+            return errorMsg;
+        }
+
+        public FilePackModel getFileModel() {
+            return fileModel;
+        }
+
+        final boolean success ;
+        final String errorMsg;
+        final FilePackModel fileModel;
+
+        public FileUpload(boolean success,String errorMsg,FilePackModel filePackModel){
+            this.success = success;
+            this.errorMsg = errorMsg;
+            this.fileModel = filePackModel;
+        }
+
+        public FileUpload(LcsProtos.AsyncActionFeedback.FileUpload pb){
+            this.success = pb.getSuccess();
+            this.errorMsg = pb.getErrMsg();
+            this.fileModel = new FilePackModel(pb.getFile());
+        }
+
+        @Override
+        LcsProtos.AsyncActionFeedback.FileUpload getPb() {
+            return LcsProtos.AsyncActionFeedback.FileUpload.newBuilder()
+                    .setSuccess(this.success)
+                    .setErrMsg(this.errorMsg)
+                    .setFile(this.fileModel.getPb())
+                    .build();
+        }
+    }
+
 }

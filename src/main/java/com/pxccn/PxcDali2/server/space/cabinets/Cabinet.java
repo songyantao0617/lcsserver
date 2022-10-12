@@ -1,6 +1,7 @@
 package com.pxccn.PxcDali2.server.space.cabinets;
 
 import com.google.common.util.concurrent.*;
+import com.google.gson.JsonObject;
 import com.prosysopc.ua.StatusException;
 import com.prosysopc.ua.nodes.UaNode;
 import com.prosysopc.ua.stack.builtintypes.DateTime;
@@ -22,56 +23,51 @@ import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.Util;
 import com.pxccn.PxcDali2.common.annotation.FwComponentAnnotation;
-import com.pxccn.PxcDali2.server.database.model.RoomTriggerV3;
-import com.pxccn.PxcDali2.server.database.model.RoomUnitV3;
 import com.pxccn.PxcDali2.server.events.CabinetAliveChangedEvent;
 import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
-import com.pxccn.PxcDali2.server.service.db.CabinetQueryService;
+import com.pxccn.PxcDali2.server.service.db.DatabaseService;
 import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
 import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
+import com.pxccn.PxcDali2.server.service.rpc.WritePropertyParameter;
+import com.pxccn.PxcDali2.server.space.lights.LightBase;
 import com.pxccn.PxcDali2.server.space.lights.LightsManager;
 import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.helpers.MessageFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.util.Assert;
 
 import javax.annotation.PostConstruct;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * 控制柜
+ */
 @FwComponentAnnotation
 @Slf4j
 public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
 
     @Value("${LcsServer.offlineThreshold:30000}")
-    int offlineThreshold;
-
+    int offlineThreshold;//历经多长时间没有收到心跳包则认为下线
     @Value("${LcsServer.timeServer:false}")
     boolean isTimeServer;
     @Autowired
     UaAlarmEventService uaAlarmEventService;
     @Autowired
     CabinetRequestService cabinetRequestService;
-
     @Autowired
-    CabinetQueryService cabinetQueryService;
-
+    DatabaseService databaseService;
     @Autowired
     ConfigurableApplicationContext context;
-
     @Autowired
     LightsManager lightsManager;
-
     FwProperty<String> Name;
     FwProperty<String> Description;
     FwProperty<String> Version;
@@ -94,6 +90,18 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         return this.IsAlive.get();
     }
 
+    public DateTime getLastConnectionLostTimeStamp() {
+        return this.LastConnectionLostTimeStamp.get();
+    }
+
+    public String getVersion() {
+        return this.Version.get();
+    }
+
+    public Props getProps() {
+        return this.Props.get();
+    }
+
     @Override
     public String toString() {
         try {
@@ -108,7 +116,7 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
     }
 
     @PostConstruct
-    public void post() {
+    public void init() {
         Name = addProperty("", "cabinetName");
         Description = addProperty("", "description");
         CabinetId = addProperty(0, "cabinetId");
@@ -126,6 +134,9 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         Ip1 = addProperty("", "Ip1");
     }
 
+    /**
+     * 检查控制柜是否下线
+     */
     public void checkIsNotAlive() {
         if (System.currentTimeMillis() - this._lastMsgTimestamp > this.offlineThreshold) {
             this.IsAlive.set(false);
@@ -154,7 +165,10 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         this.cabinetDataInit();
     }
 
-    public void cabinetDataInit() {
+    /**
+     * 控制柜首次上线初始化动作
+     */
+    private void cabinetDataInit() {
         log.info(logStr("cabinetDataInit"));
         if (this.isTimeServer) {
             this.setCabinetSystemTime(System.currentTimeMillis());//同步系统时间
@@ -162,7 +176,6 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         this.AskToUpdateLightsAndRoomInfo();//要求控制器上传灯具和房间的具体信息
         this.purgeCacheForUpdateAllRealtimeStatus();//要求控制器更新所有灯具亮度
         this.disableEnergyMeasuring();//关闭控制器的能源检测功能
-
     }
 
     public void onChanged(FwProperty property, FwContext context) {
@@ -183,7 +196,7 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
             this.context.publishEvent(new CabinetAliveChangedEvent(this, this.IsAlive.get(), System.currentTimeMillis()));
         } else if (property == this.Name) {
             this.getNode().setDisplayName(new LocalizedText(this.Name.get()));
-            this.getNode().setBrowseName(new QualifiedName(this.getNode().getNamespaceIndex(),this.Name.get()));
+            this.getNode().setBrowseName(new QualifiedName(this.getNode().getNamespaceIndex(), this.Name.get()));
         }
     }
 
@@ -204,21 +217,22 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
 
     /**
      * 同步V3房间数据触发器
+     *
      * @return
      */
-    public ListenableFuture<AsyncActionFeedbackWrapper.V3RoomTriggerUpdate> sendV3RoomTriggerUpdate(){
+    public ListenableFuture<AsyncActionFeedbackWrapper.V3RoomTriggerUpdate> sendV3RoomTriggerUpdate() {
         log.trace(logStr("sendV3RoomTriggerUpdate"));
-        if(!this.isAlive()){
+        if (!this.isAlive()) {
             var m = logStr("can not sendV3RoomTriggerUpdate : cabinet is not alive");
             log.error(m);
             return Futures.immediateFailedFuture(new IllegalStateException(m));
         }
         SettableFuture<AsyncActionFeedbackWrapper.V3RoomTriggerUpdate> future = SettableFuture.create();
-        Futures.addCallback(cabinetQueryService.getV3RoomTriggerModelFromCabinetId(this.getCabinetId(), this.getCabinetManager().executorService), new FutureCallback<List<V3RoomTriggerInfoModel.Trigger>>() {
+        Futures.addCallback(databaseService.getV3RoomTriggerModelFromCabinetId(this.getCabinetId(), this.getCabinetManager().executorService), new FutureCallback<List<V3RoomTriggerInfoModel.Trigger>>() {
             @Override
             public void onSuccess(@Nullable List<V3RoomTriggerInfoModel.Trigger> result) {
-                assert result!=null;
-                if(result.size()==0){
+                assert result != null;
+                if (result.size() == 0) {
                     log.debug(logStr("no trigger need update for this cabinet"));
                     AsyncActionFeedbackWrapper.V3RoomTriggerUpdate r = new AsyncActionFeedbackWrapper.V3RoomTriggerUpdate(Collections.EMPTY_LIST);
                     future.set(r);
@@ -228,11 +242,11 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                         RpcTarget.ToCabinet(getCabinetId()),
                         new ActionWithFeedbackRequestWrapper(Util.NewCommonHeaderForClient(),
                                 new ActionWithFeedbackRequestWrapper.V3RoomTriggerUpdate(new V3RoomTriggerInfoModel(result))
-                        ),(resp)->{
+                        ), (resp) -> {
                             var msg = logStr("receive the sendV3RoomTriggerUpdate command success ");
                             log.info(msg);
                             uaAlarmEventService.successEvent(Cabinet.this, msg);
-                        },60000*5);
+                        }, 60000 * 5);
                 Futures.addCallback(f, new FutureCallback<AsyncActionFeedbackWrapper>() {
                     @Override
                     public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
@@ -240,20 +254,20 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                             log.error("Internal Error! no valid response");
                             return;
                         }
-                        if(result.getFeedback() instanceof AsyncActionFeedbackWrapper.V3RoomTriggerUpdate){
+                        if (result.getFeedback() instanceof AsyncActionFeedbackWrapper.V3RoomTriggerUpdate) {
                             var msg = logStr("execute the sendV3RoomTriggerUpdate command success :{}", result.getFeedback());
 
                             var fbList = ((AsyncActionFeedbackWrapper.V3RoomTriggerUpdate) result.getFeedback()).getFeedbacks();
 
                             //TODO
-                            fbList.forEach(fb->{
-                                cabinetQueryService.updateTriggerFeedback2(fb.getTriggerUuid(),fb.getMsg());
+                            fbList.forEach(fb -> {
+                                databaseService.updateTriggerFeedback2(fb.getTriggerUuid(), fb.getMsg());
                             });
 
                             log.info(msg);
                             uaAlarmEventService.successEvent(Cabinet.this, msg);
                             future.set((AsyncActionFeedbackWrapper.V3RoomTriggerUpdate) result.getFeedback());
-                        }else {
+                        } else {
                             future.setException(new IllegalStateException("not valid response"));
                         }
                     }
@@ -265,7 +279,7 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                         uaAlarmEventService.failureEvent(Cabinet.this, msg);
                         future.setException(t);
                     }
-                },MoreExecutors.directExecutor());
+                }, MoreExecutors.directExecutor());
             }
 
             @Override
@@ -275,35 +289,36 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                 uaAlarmEventService.failureEvent(Cabinet.this, msg);
                 future.setException(t);
             }
-        },MoreExecutors.directExecutor());
+        }, MoreExecutors.directExecutor());
 
         return future;
     }
 
     /**
      * 同步V3房间基本信息
+     *
      * @return
      */
-    public ListenableFuture<AsyncActionFeedbackWrapper.V3RoomUpdate> sendV3RoomUpdate(){
+    public ListenableFuture<AsyncActionFeedbackWrapper.V3RoomUpdate> sendV3RoomUpdate() {
         log.trace(logStr("sendV3RoomUpdate"));
-        if(!this.isAlive()){
+        if (!this.isAlive()) {
             var m = logStr("can not sendV3RoomUpdate : cabinet is not alive");
             log.error(m);
             return Futures.immediateFailedFuture(new IllegalStateException(m));
         }
         SettableFuture<AsyncActionFeedbackWrapper.V3RoomUpdate> future = SettableFuture.create();
-        Futures.addCallback(cabinetQueryService.getV3RoomModelFromCabinetId(getCabinetId(),this.getCabinetManager().executorService), new FutureCallback<List<V3RoomLightInfoModel.Room>>() {
+        Futures.addCallback(databaseService.getV3RoomModelFromCabinetId(getCabinetId(), this.getCabinetManager().executorService), new FutureCallback<List<V3RoomLightInfoModel.Room>>() {
             @Override
             public void onSuccess(@Nullable List<V3RoomLightInfoModel.Room> result) {
                 var f = cabinetRequestService.asyncSendWithAsyncFeedback(
                         RpcTarget.ToCabinet(getCabinetId()),
                         new ActionWithFeedbackRequestWrapper(Util.NewCommonHeaderForClient(),
                                 new ActionWithFeedbackRequestWrapper.V3RoomUpdate(new V3RoomLightInfoModel(result))
-                        ),(resp)->{
+                        ), (resp) -> {
                             var msg = logStr("receive the sendV3RoomUpdate command success ");
                             log.info(msg);
                             uaAlarmEventService.successEvent(Cabinet.this, msg);
-                        },60000*5);
+                        }, 60000 * 5);
                 Futures.addCallback(f, new FutureCallback<AsyncActionFeedbackWrapper>() {
                     @Override
                     public void onSuccess(@Nullable AsyncActionFeedbackWrapper result) {
@@ -311,12 +326,12 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                             log.error("Internal Error! no valid response");
                             return;
                         }
-                        if(result.getFeedback() instanceof AsyncActionFeedbackWrapper.V3RoomUpdate){
+                        if (result.getFeedback() instanceof AsyncActionFeedbackWrapper.V3RoomUpdate) {
                             var msg = logStr("execute the sendV3RoomUpdate command success :{}", result.getFeedback());
                             log.info(msg);
                             uaAlarmEventService.successEvent(Cabinet.this, msg);
                             future.set((AsyncActionFeedbackWrapper.V3RoomUpdate) result.getFeedback());
-                        }else {
+                        } else {
                             future.setException(new IllegalStateException("not valid response"));
                         }
                     }
@@ -328,7 +343,7 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                         uaAlarmEventService.failureEvent(Cabinet.this, msg);
                         future.setException(t);
                     }
-                },MoreExecutors.directExecutor());
+                }, MoreExecutors.directExecutor());
             }
 
             @Override
@@ -338,11 +353,17 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                 uaAlarmEventService.failureEvent(Cabinet.this, msg);
                 future.setException(t);
             }
-        },MoreExecutors.directExecutor());
+        }, MoreExecutors.directExecutor());
         return future;
     }
 
-    public void executeV3Sync(){
+    /**
+     * 执行数据库同步命令（优化版）
+     *
+     * 本方法原理：
+     *  由本Server执行数据库查询操作，并将房间及触发器信息直接发往对应的控制柜
+     */
+    public void executeV3Sync() {
         log.info(logStr("executeV3Sync"));
         Futures.addCallback(this.sendV3RoomUpdate(), new FutureCallback<AsyncActionFeedbackWrapper.V3RoomUpdate>() {
             @Override
@@ -357,7 +378,7 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                     public void onFailure(Throwable t) {
 
                     }
-                },MoreExecutors.directExecutor());
+                }, MoreExecutors.directExecutor());
             }
 
             @Override
@@ -368,9 +389,15 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                 uaAlarmEventService.failureEvent(Cabinet.this, msg);
                 sendDbSync(2);
             }
-        },MoreExecutors.directExecutor());
+        }, MoreExecutors.directExecutor());
     }
 
+    /**
+     * 发送数据库同步命令
+     *
+     * @param flag
+     * @return
+     */
     public ListenableFuture<AsyncActionFeedbackWrapper.DbSync> sendDbSync(int flag) {
         if (log.isTraceEnabled()) {
             log.trace(logStr("sendDbSync({}): flag={}", this.Name.get(), flag));
@@ -415,7 +442,13 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         return future;
     }
 
-
+    /**
+     * 发送控制柜级别广播命令
+     *
+     * @param terminalIndex 总线序号
+     * @param dali2LightCommandModel
+     * @return
+     */
     public ListenableFuture<AsyncActionFeedbackWrapper.SendBroadcastLevelInstruction> sendBroadcastCommand(int terminalIndex, Dali2LightCommandModel dali2LightCommandModel) {
         if (log.isTraceEnabled()) {
             log.trace(logStr("sendBroadcastCommand({}): terminalIndex={},dali2LightCommandModel={}", this.Name.get(), terminalIndex, dali2LightCommandModel));
@@ -462,6 +495,11 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         return future;
     }
 
+    /**
+     * 设置控制柜时间
+     * @param timestamp 时间
+     * @return
+     */
     public ListenableFuture<AsyncActionFeedbackWrapper.SetSysTime> setCabinetSystemTime(long timestamp) {
         if (log.isTraceEnabled()) {
             log.trace(logStr("setSystemTime"));
@@ -639,7 +677,28 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         }, MoreExecutors.directExecutor());
     }
 
-    //关闭控制器能源监测模块
+    public void setMaintenance(boolean maintenance) {
+        if (log.isTraceEnabled()) {
+            log.trace(logStr("setMaintenance: maintenance={}", maintenance));
+        }
+        Futures.addCallback(this.cabinetRequestService.invokeNiagaraMethodAsync(RpcTarget.ToCabinet(CabinetId.get()), "station:|slot:/LightControlSystem/setMaintenanceMode", String.valueOf(maintenance)), new FutureCallback<Object>() {
+            @Override
+            public void onSuccess(@Nullable Object result) {
+                var msg = logStr("execute the setMaintenance command success");
+                log.info(msg);
+                uaAlarmEventService.successEvent(Cabinet.this, msg);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                var msg = logStr("execute the setMaintenance command failure", t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(Cabinet.this, msg);
+            }
+        }, MoreExecutors.directExecutor());
+    }
+
+    //关闭控制器能源监测
     public void disableEnergyMeasuring() {
         if (log.isTraceEnabled()) {
             log.trace(logStr("disableEnergyMeasuring"));
@@ -661,6 +720,90 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
         }, MoreExecutors.directExecutor());
     }
 
+    public void AutoRepair() {
+        log.debug(logStr("call AutoRepair"));
+        Futures.addCallback(this.cabinetRequestService.invokeNiagaraMethodAsync(RpcTarget.ToCabinet(CabinetId.get()), "station:|slot:/LightControlSystem/autoRepair",null), new FutureCallback<Object>() {
+            @Override
+            public void onSuccess(@Nullable Object result) {
+                var msg = logStr("execute the AutoRepair command success");
+                log.info(msg);
+                uaAlarmEventService.successEvent(Cabinet.this, msg);
+            }
+            @Override
+            public void onFailure(Throwable t) {
+                var msg = logStr("execute the AutoRepair command failure", t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(Cabinet.this, msg);
+            }
+        }, MoreExecutors.directExecutor());
+    }
+
+    public void sendAllLightsGroupAddress(){
+        log.debug(logStr("call sendAllLightsGroupAddress"));
+
+        Futures.addCallback(this.cabinetRequestService.invokeNiagaraMethodAsync(RpcTarget.ToCabinet(CabinetId.get()), "station:|slot:/LightControlSystem/lightManager/sendAllLightsGroupAddress",null), new FutureCallback<Object>() {
+            @Override
+            public void onSuccess(@Nullable Object result) {
+                var msg = logStr("execute the sendAllLightsGroupAddress command success");
+                log.info(msg);
+                uaAlarmEventService.successEvent(Cabinet.this, msg);
+            }
+            @Override
+            public void onFailure(Throwable t) {
+                var msg = logStr("execute the sendAllLightsGroupAddress command failure", t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(Cabinet.this, msg);
+            }
+        }, MoreExecutors.directExecutor());
+    }
+
+    public void changeLightName(Map<UUID, String> changeMap) {
+        Assert.notNull(changeMap, "changeMap");
+        var traceMsg = logStr("changeLightName:changeMap={}", changeMap);
+        log.trace(traceMsg);
+        uaAlarmEventService.debugEvent(this, traceMsg);
+
+        if (!this.isAlive()) {
+            var msg = logStr("changeLightName fail : not alive");
+            log.error(msg);
+            uaAlarmEventService.failureEvent(this, msg);
+        }
+
+        var param = changeMap.entrySet().stream().map(c -> new WritePropertyParameter(c.getKey(), "lightName", c.getValue())).collect(Collectors.toList());
+
+        Futures.addCallback(this.cabinetRequestService.batchWritePropertyAsync(RpcTarget.ToCabinet(CabinetId.get()), param), new FutureCallback<List<String>>() {
+            @Override
+            public void onSuccess(@Nullable List<String> result) {
+                assert result != null;
+                var msg = logStr("execute the changeLightName command success");
+                log.info(msg);
+                uaAlarmEventService.successEvent(Cabinet.this, msg);
+                int size = param.size();
+                for (int i = 0; i < size; i++) {
+                    var p = param.get(i);
+                    var r = result.get(i);
+                    var uuid = p.getResourceUUID();
+                    if (r.isEmpty()) {
+                        var msg2 = logStr("success to change light <{}> name to {}", uuid, p.getNewValue());
+                        log.info(msg2);
+                        uaAlarmEventService.successEvent(Cabinet.this, msg2);
+                    } else {
+                        var msg2 = logStr("can not change light <{}> name to {} : {}", uuid, p.getNewValue(), r);
+                        log.error(msg2);
+                        uaAlarmEventService.failureEvent(Cabinet.this, msg2);
+                    }
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                var msg = logStr("execute the changeLightName command failure", t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(Cabinet.this, msg);
+            }
+        }, MoreExecutors.directExecutor());
+    }
+
     public void onUpdateStatus(CabinetStatusWrapper status) {
         this.Props.get().accept(status.getPropsMap());
         this._lastMsgTimestamp = System.currentTimeMillis();
@@ -670,7 +813,7 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
     }
 
 
-    protected String getLogLocate() {
+    public String getLogLocate() {
         return Name.get() + "(" + CabinetId.get() + ")";
     }
 
@@ -697,6 +840,95 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                 uaAlarmEventService.failureEvent(Cabinet.this, msg);
             }
         }, MoreExecutors.directExecutor());
+    }
+
+    public void InvokeCabinetNiagaraPlatformMethod(String methodOrd,String arg){
+        String m = logStr("InvokeCabinetNiagaraPlatformMethod: methodOrd={},arg={}", methodOrd, arg);
+        if (log.isTraceEnabled()) {
+            log.trace(m);
+        }
+        uaAlarmEventService.debugEvent(this, m);
+        Futures.addCallback(cabinetRequestService.invokeNiagaraMethodAsync(RpcTarget.ToCabinet(CabinetId.get()), methodOrd, arg), new FutureCallback<Object>() {
+            @Override
+            public void onSuccess(@Nullable Object result) {
+                var msg = m + " success";
+                log.info(msg);
+                uaAlarmEventService.successEvent(Cabinet.this, msg);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                var msg = logStr("execute the InvokeCabinetNiagaraPlatformMethod command failure", t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(Cabinet.this, msg);
+            }
+        }, MoreExecutors.directExecutor());
+    }
+    public void WriteNiagaraPlatformProperty(String slotPath, String value) {
+        String m = logStr("WriteNiagaraPlatformProperty: slotPath={},value={}", slotPath, value);
+        if (log.isTraceEnabled()) {
+            log.trace(m);
+        }
+        uaAlarmEventService.debugEvent(this, m);
+        Futures.addCallback(cabinetRequestService.writePropertyValueAsync(RpcTarget.ToCabinet(CabinetId.get()), slotPath, value), new FutureCallback<Void>() {
+            @Override
+            public void onSuccess(@Nullable Void result) {
+                var msg = m + " success";
+                log.info(msg);
+                uaAlarmEventService.successEvent(Cabinet.this, msg);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                var msg = logStr("execute the WriteNiagaraPlatformProperty command failure", t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(Cabinet.this, msg);
+            }
+        }, MoreExecutors.directExecutor());
+    }
+
+    public void WriteNiagaraPlatformProperty(String resourceUuid, String slotPath, String value) {
+        UUID u = UUID.fromString(resourceUuid);
+        String m = logStr("WriteNiagaraPlatformProperty: resourceUuid={},slotPath={},value={}", resourceUuid, slotPath, value);
+        if (log.isTraceEnabled()) {
+            log.trace(m);
+        }
+        uaAlarmEventService.debugEvent(this, m);
+        Futures.addCallback(cabinetRequestService.writePropertyValueAsync(RpcTarget.ToCabinet(CabinetId.get()), u, slotPath, value), new FutureCallback<Void>() {
+            @Override
+            public void onSuccess(@Nullable Void result) {
+                var msg = m + " success";
+                log.info(msg);
+                uaAlarmEventService.successEvent(Cabinet.this, msg);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                var msg = logStr("execute the WriteNiagaraPlatformProperty command failure", t);
+                log.error(msg);
+                uaAlarmEventService.failureEvent(Cabinet.this, msg);
+            }
+        }, MoreExecutors.directExecutor());
+    }
+
+    /**
+     * 灯具信息审计
+     */
+    public void auditLightsInfo() {
+        Map<Integer, Set<LightBase>> terminalLightsMap = new HashMap<>(); // TerminalIndex : Light
+        Arrays.stream(this.lightsManager.findAllLightsWithCabinetId(CabinetId.get())).forEach(l -> {
+            var terminalIndex = l.getTerminalIndex();
+            if (terminalIndex != -1) {
+                var currentTerminalLightsSet = terminalLightsMap.computeIfAbsent(terminalIndex, (k) -> new HashSet<>());
+                currentTerminalLightsSet.add(l);
+            }
+        });
+
+
+        terminalLightsMap.forEach((terminalIndex, lights) -> {
+            var errLights = lights.stream().filter(l -> !l.getErrorMsg().isEmpty()).collect(Collectors.toList());
+            this.databaseService.submitAuditLightInfo(CabinetId.get(),terminalIndex,lights.size(),errLights.size());
+        });
     }
 
     /**
@@ -831,15 +1063,34 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                 var CmdDt8 = new Dt8CommandModel(UaHelperUtil.getEnum(Dt8CommandModel.Instructions.class, input[3].intValue()), input[4].intValue(), input[5].intValue());
                 this.comp.onSendCtlCommand(targets, Cmd103, CmdDt8);
                 return null;
-            }else if(declared == methods.executeV3Sync){
+            } else if (declared == methods.executeV3Sync) {
                 this.comp.executeV3Sync();
+                return null;
+            } else if (declared == methods.writeNiagaraPlatformPropertyBySlotOrd) {
+                this.comp.WriteNiagaraPlatformProperty(input[0].toString(), input[1].toString());
+                return null;
+            } else if (declared == methods.setMaintenance) {
+                this.comp.setMaintenance(input[0].booleanValue());
+                return null;
+            }else if(declared == methods.autoRepair){
+                this.comp.AutoRepair();
+                return null;
+            }else if(declared == methods.sendAllLightsGroupAddress){
+                this.comp.sendAllLightsGroupAddress();
+                return null;
+            }else if(declared == methods.invokeCabinetNiagaraPlatformMethod){
+                this.comp.InvokeCabinetNiagaraPlatformMethod(input[0].toString(),input[1].booleanValue()?input[2].toString():null);
                 return null;
             }
             return super.onMethodCall(declared, input);
         }
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
+
+            autoRepair(),
+            sendAllLightsGroupAddress,
             executeV3Sync(),
+            setMaintenance(new UaHelperUtil.MethodArgument[]{new UaHelperUtil.MethodArgument("maintenance", Identifiers.Boolean)}, null),
             syncTime(),
             restart(),
             saveStation(),
@@ -874,7 +1125,19 @@ public class Cabinet extends FwUaComponent<Cabinet.CabinetNode> {
                     new UaHelperUtil.MethodArgument("setNotifyChangeOnly", Identifiers.Boolean),
                     new UaHelperUtil.MethodArgument("notifyChangeOnly", Identifiers.Boolean),
                     new UaHelperUtil.MethodArgument("purgeCache", Identifiers.Boolean),
-            }, null);
+            }, null),
+            writeNiagaraPlatformPropertyBySlotOrd(new UaHelperUtil.MethodArgument[]{
+                    new UaHelperUtil.MethodArgument("slotOrd", Identifiers.String),
+                    new UaHelperUtil.MethodArgument("value", Identifiers.String),
+            }, null),
+            invokeCabinetNiagaraPlatformMethod(new UaHelperUtil.MethodArgument[]{
+                    new UaHelperUtil.MethodArgument("methodOrd", Identifiers.String),
+                    new UaHelperUtil.MethodArgument("haveArg", Identifiers.Boolean),
+                    new UaHelperUtil.MethodArgument("arg", Identifiers.String),
+            }, null),
+
+
+            ;
 
             private UaHelperUtil.MethodArgument[] in = null;
             private UaHelperUtil.MethodArgument[] out = null;

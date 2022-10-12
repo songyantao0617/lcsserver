@@ -42,6 +42,10 @@ public abstract class ProtoToPlcQueueMsg<T extends com.google.protobuf.Generated
                 return new ActionWithFeedbackRequestWrapper(msg);
             case ActionRequestWrapper.TypeUrl:
                 return new ActionRequestWrapper(msg);
+            case RoomSpanEventWrapper.TypeUrl:
+                return new RoomSpanEventWrapper(msg);
+            case OtaPackageRequestWrapper.TypeUrl:
+                return new OtaPackageRequestWrapper(msg);
             default:
                 return null;
         }

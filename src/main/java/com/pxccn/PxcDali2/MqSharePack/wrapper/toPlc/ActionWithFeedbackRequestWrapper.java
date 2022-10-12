@@ -53,6 +53,9 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
             case LcsProtos.ActionWithFeedbackRequest.V3ROOMTRIGGERUPDATE_FIELD_NUMBER:
                 this.action = new V3RoomTriggerUpdate(v.getV3RoomTriggerUpdate());
                 break;
+            case LcsProtos.ActionWithFeedbackRequest.FILEUPLOAD_FIELD_NUMBER:
+                this.action = new FileUpload(v.getFileUpload());
+                break;
             default:
                 this.action = null;
                 break;
@@ -82,6 +85,9 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
         return new ActionWithFeedbackRequestWrapper(headers, new SendBroadcastLevelInstruction(terminalIndex, command, dt8Command));
     }
 
+    public static ActionWithFeedbackRequestWrapper FileUpload(ProtoHeaders headers,String filePath){
+        return new ActionWithFeedbackRequestWrapper(headers,new FileUpload(filePath));
+    }
     public Action getAction() {
         return this.action;
     }
@@ -112,6 +118,8 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
             builder.setV3RoomUpdate(((V3RoomUpdate)this.action).getPb());
         }else if(this.action instanceof V3RoomTriggerUpdate){
             builder.setV3RoomTriggerUpdate(((V3RoomTriggerUpdate)action).getPb());
+        }else if(this.action instanceof FileUpload){
+            builder.setFileUpload(((FileUpload)action).getPb());
         }
         return builder;
     }
@@ -426,6 +434,24 @@ public class ActionWithFeedbackRequestWrapper extends ProtoToPlcQueueMsg<LcsProt
         }
     }
 
+    public static class FileUpload extends Action<LcsProtos.ActionWithFeedbackRequest.FileUpload>{
+        final String filePath;
+        public FileUpload(String filePath){
+            this.filePath = filePath;
+        }
+        public FileUpload(LcsProtos.ActionWithFeedbackRequest.FileUpload pb){
+            this.filePath = pb.getFilePath();
+        }
+
+        public String getFilePath(){
+            return this.filePath;
+        }
+
+        @Override
+        LcsProtos.ActionWithFeedbackRequest.FileUpload getPb() {
+            return LcsProtos.ActionWithFeedbackRequest.FileUpload.newBuilder().setFilePath(this.filePath).build();
+        }
+    }
 
 
 

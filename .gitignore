@@ -5,7 +5,7 @@ target/
 !**/src/test/**/target/
 
 dist*
-
+foobar/
 ### STS ###
 .apt_generated
 .classpath

@@ -12,6 +12,7 @@ import com.pxccn.PxcDali2.Util;
 import com.pxccn.PxcDali2.server.events.CabinetSimpleEvent;
 import com.pxccn.PxcDali2.server.events.RoomsDetailUploadEvent;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
+import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
@@ -23,32 +24,55 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.util.*;
 
+/**
+ * 常规房间管理器
+ */
 @Component
 @Slf4j
 public class RoomsManager extends FwUaComponent<RoomsManager.RoomsManagerNode> {
     @Autowired
     CabinetRequestService cabinetRequestService;
 
+    @Autowired
+    UaAlarmEventService uaAlarmEventService;
+
+    FwProperty<Integer> count;
+
+    @PostConstruct
+    public void init(){
+        this.count = addProperty(0,"count");
+    }
+
+    public void updateCount(){
+        this.count.set(this.getPropertyCount());
+    }
 
     @EventListener
     public void onCabinetSimpleEvent(CabinetSimpleEvent event) {
         var message = event.getMessage();
         var uid = message.getUuid();
         var cabinetId = message.getCabinetId();
+        String logString = "";
         switch (message.getEvent()) {
-            //TODO 暂时忽略房间创建
             case RoomAdded:
-                log.debug("房间<{}>创建", uid);
+                logString = logStr("Room<{}> RoomAdded", uid);
+                log.debug(logString);
+                uaAlarmEventService.debugEvent(this, logString);
                 this.AskToUpdateRoomsInfo(Collections.singletonList(uid), cabinetId);
                 break;
             case RoomRemoved:
-                log.debug("房间<{}>被移除", uid);
+                logString = logStr("Room<{}> RoomRemoved", uid);
+                log.debug(logString);
+                uaAlarmEventService.debugEvent(this, logString);
                 this.removeProperty(uid.toString());
                 break;
             case RoomInfoChange:
-                log.debug("房间<{}>信息变更", uid);
+                logString = logStr("Room<{}> RoomInfoChange", uid);
+                log.debug(logString);
+                uaAlarmEventService.debugEvent(this, logString);
                 this.AskToUpdateRoomsInfo(Collections.singletonList(uid), cabinetId);
                 break;
         }
@@ -142,6 +166,7 @@ public class RoomsManager extends FwUaComponent<RoomsManager.RoomsManagerNode> {
         if (cabinetId != null && cabinetId.intValue() != room.getCabinetId()) {
             room.setCabinetId(cabinetId.intValue());
         }
+        updateCount();
         return room;
     }
 
@@ -161,6 +186,7 @@ public class RoomsManager extends FwUaComponent<RoomsManager.RoomsManagerNode> {
         protected RoomsManagerNode(RoomsManager uaComponent, String qname) {
             super(uaComponent, qname);
             this.comp = uaComponent;
+            addProperty(this.comp.count);
             addAdditionalDeclares(folders.values());
         }
 

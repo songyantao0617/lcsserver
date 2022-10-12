@@ -21,8 +21,10 @@ import com.pxccn.PxcDali2.server.mq.rpc.exceptions.OperationFailure;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
 import com.pxccn.PxcDali2.server.service.rpc.InvokeParam;
 import com.pxccn.PxcDali2.server.service.rpc.RpcTarget;
+import com.pxccn.PxcDali2.server.service.rpc.WritePropertyParameter;
 import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.helpers.MessageFormatter;
 import org.springframework.amqp.core.AmqpMessageReturnedException;
 import org.springframework.amqp.core.AmqpReplyTimeoutException;
 import org.springframework.amqp.rabbit.AsyncRabbitTemplate;
@@ -35,14 +37,16 @@ import org.springframework.util.concurrent.ListenableFutureCallback;
 import javax.annotation.PostConstruct;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class CabinetRequestServiceImpl implements CabinetRequestService, InitializingBean {
-//    private ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
+    //    private ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
     private final ConcurrentMap<UUID, Task> pending = new ConcurrentHashMap<>();
     @Autowired
     RabbitTemplate rabbitTemplate;
@@ -161,6 +165,10 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
         return this.invokeMethodAsync(target, model);
     }
 
+    public ListenableFuture<Object> invokeNiagaraMethodAsync(RpcTarget target, String actionOrd, String value) {
+        return this.invokeMethodAsync(target, "station:|slot:/LightControlSystem", "RPC_InvokeAction", InvokeParam.set(String.class, actionOrd), InvokeParam.set(String.class, value));
+    }
+
     public ListenableFuture<Object> invokeMethodAsync(RpcTarget target, String bComponentOrd, String methodName, InvokeParam... params) {
         var model = NiagaraOperateRequestModel.INVOKE_METHOD(bComponentOrd, methodName);
         if (params != null) {
@@ -172,8 +180,8 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
     }
 
     private ListenableFuture<Object> invokeMethodAsync(RpcTarget target, NiagaraOperateRequestModel model) {
-        if (log.isDebugEnabled())
-            log.debug("发起异步函数调用,{},函数名：{}", target.toFriendlyString(), model.getTargetValue());
+        if (log.isTraceEnabled())
+            log.trace("invokeMethodAsync: RpcTarget={},functionName={}", target.toFriendlyString(), model.getTargetValue());
 
         return Futures.transform(this.asyncSend(
                 target
@@ -185,12 +193,12 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
             checkExpectType(NiagaraOperateRespWrapper.class, input);
             var a = (NiagaraOperateRespWrapper) input;
             if (a.getResponseList().size() != 1) {
-                throw new IllegalStateException("报文不正确");
+                throw new IllegalStateException("Bad payload! internal error");
             }
             var b = a.getResponseList().get(0);
             if (b.isSuccess()) {
                 if (log.isDebugEnabled())
-                    log.debug("异步函数调用成功,函数名：{}", model.getTargetValue());
+                    log.debug("invokeMethodAsync success,function name : {}", model.getTargetValue());
                 return b.getReturnValue();
             } else {
                 throw new IllegalStateException(b.getExceptionReason());
@@ -219,7 +227,7 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
         SettableFuture<Void> future = SettableFuture.create();
         Futures.addCallback(responseFuture, on(NiagaraOperateRespWrapper.class, (resp) -> {
             if (resp.getResponseList().size() != 1) {
-                throw new IllegalStateException("返回执行结果的数量错误");
+                throw new IllegalStateException("Bad response from controller");
             }
             var m = resp.getResponseList().get(0);
             if (m.isSuccess()) {
@@ -230,6 +238,36 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
         }, future::setException), executor);
         return future;
     }
+
+
+    public ListenableFuture<List<String>> batchWritePropertyAsync(RpcTarget target, List<WritePropertyParameter> parameters) {
+
+        var responseFuture = this.asyncSend(target, new NiagaraOperateRequestWrapper(Util.NewCommonHeaderForClient(),
+                parameters
+                        .stream()
+                        .map(p -> {
+                            return NiagaraOperateRequestModel.WRITE_PROPERTY(p.getResourceUUID(), p.getSlot(), p.getNewValue());
+                        }).collect(Collectors.toList()), false));
+        SettableFuture<List<String>> future = SettableFuture.create();
+        Futures.addCallback(responseFuture, on(NiagaraOperateRespWrapper.class, (resp) -> {
+            var responseList = resp.getResponseList();
+            if (responseList.size() != parameters.size()) {
+                var msg = MessageFormatter.arrayFormat("Internal Error! writePropertyValueAsync target={}, expected {} response but {} received!", new Object[]{target, parameters.size(), responseList.size()}).getMessage();
+                future.setException(new IllegalStateException(msg));
+                return;
+            }
+            future.set(responseList.stream().map(r -> {
+                if (r.isSuccess()) {
+                    return "";
+                } else {
+                    return r.getExceptionReason();
+                }
+            }).collect(Collectors.toList()));
+
+        }, future::setException), executor);
+        return future;
+    }
+
 
     private ListenableFuture<String> readPropertyValueAsync(RpcTarget target, NiagaraOperateRequestModel request) {
         var responseFuture = this.asyncSend(target, new NiagaraOperateRequestWrapper(Util.NewCommonHeaderForClient(), Collections.singletonList(request), false));
@@ -344,11 +382,11 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
                     @Override
                     public void onFailure(Throwable t) {
                         if (t instanceof AmqpMessageReturnedException) {
-                            log.error("<{}>投递请求<{}>消息被打回，因为目标控制器不在线", target.toFriendlyString(), request.getAction().getClass().getSimpleName());
+                            log.error("<{}>post request <{}> Message was reject! because cabinet is not online", target.toFriendlyString(), request.getAction().getClass().getSimpleName());
                         } else if (t instanceof AmqpReplyTimeoutException) {
-                            log.error("<{}>投递请求<{}>超时！未及时收到控制器返回！", target.toFriendlyString(), request.getAction().getClass().getSimpleName());
+                            log.error("<{}>post request <{}> timeout! didn't receive the resp in time", target.toFriendlyString(), request.getAction().getClass().getSimpleName());
                         } else {
-                            log.error("<{}>投递请求<{}>失败:{}", target.toFriendlyString(), t.getMessage(), request.getAction().getClass().getSimpleName());
+                            log.error("<{}>post request <{}> failure :{}", target.toFriendlyString(), t.getMessage(), request.getAction().getClass().getSimpleName(), t);
                         }
                         scheduleFuture.cancel(true);
                         pending.remove(request.getRequestId());
@@ -360,6 +398,7 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
         return feedbackFuture;
     }
 
+    @Override
     public void onReceiveFeedback(AsyncActionFeedbackWrapper feedbackWrapper) {
         try {
             UUID requestId = feedbackWrapper.getRequestId();
@@ -374,10 +413,10 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
                 else
                     t.consumer.setException(new IllegalStateException(error));
             } else {
-                log.warn("feedback timeout or not belong to this server:{}", feedbackWrapper);
+                log.debug("feedback timeout or not belong to this server:{}", feedbackWrapper);
             }
         } catch (Throwable e) {
-            log.error("严重错误，无法处理!", e);
+            log.error("Fatal Error", e);
         }
     }
 
@@ -389,9 +428,6 @@ public class CabinetRequestServiceImpl implements CabinetRequestService, Initial
     static class Task {
         public SettableFuture<AsyncActionFeedbackWrapper> consumer;
         public int timeout;
-
         public ScheduledFuture<?> schedule;
     }
-
-
 }

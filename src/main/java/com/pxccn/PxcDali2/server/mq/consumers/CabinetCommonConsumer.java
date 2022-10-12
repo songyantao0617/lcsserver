@@ -6,6 +6,7 @@ import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.*;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
 import com.pxccn.PxcDali2.common.VersionHelper;
 import com.pxccn.PxcDali2.server.events.*;
+import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
 import com.pxccn.PxcDali2.server.service.rpc.impl.CabinetRequestServiceImpl;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.core.AmqpAdmin;
@@ -30,7 +31,7 @@ public class CabinetCommonConsumer extends ComsumerBase {
     ApplicationContext context;
 
     @Autowired
-    CabinetRequestServiceImpl cabinetRequestService;
+    CabinetRequestService cabinetRequestService;
 
     protected int getParallelism() {
         return 10;
@@ -38,7 +39,7 @@ public class CabinetCommonConsumer extends ComsumerBase {
 
     @Override
     protected void prepare(AmqpAdmin amqpAdmin) {
-        amqpAdmin.declareQueue(new Queue(this.getQueueName(), false, false, true));
+        amqpAdmin.declareQueue(new Queue(this.getQueueName(), true, false, false));
         amqpAdmin.declareBinding(new Binding(this.getQueueName(), Binding.DestinationType.QUEUE, switch_cabinet_common, "", null));
     }
 
@@ -72,7 +73,7 @@ public class CabinetCommonConsumer extends ComsumerBase {
         } catch (InvalidProtocolBufferException e) {
             log.error("Fail to decode pb: {}", e.getMessage());
         } catch (Throwable e) {
-            log.error("严重错误，无法处理!", e);
+            log.error("Fatal Error !", e);
         }
     }
 

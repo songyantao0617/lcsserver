@@ -36,7 +36,7 @@ public class BroadcastService extends ComsumerBase {
 
     @Override
     protected void prepare(AmqpAdmin amqpAdmin) {
-        amqpAdmin.declareQueue(new Queue(this.getQueueName(), false, false, true));
+        amqpAdmin.declareQueue(new Queue(this.getQueueName(), true, false, false));
     }
 
     @Override

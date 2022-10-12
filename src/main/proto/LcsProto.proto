@@ -18,6 +18,12 @@ enum LightTypeEnum{
   DO = 1;
 }
 
+message FilePack{
+  string fileName = 1;
+  int64 crc32 = 2;
+  bytes content = 3;
+}
+
 message Dali2LightCommand{
   string instruction = 1; //指令枚举名称
   int32 parameter = 2;
@@ -96,6 +102,27 @@ message RealtimeStatus{
 //控制柜实时状态报文
 message CabinetStatus{
   repeated sKsV props = 1;
+}
+
+message CabinetLogEvents{
+  message Event{
+    int64 timestamp = 1;
+    string logLevel = 2;
+    string clsName = 3;
+    string methodName = 4;
+    string message = 5;
+    string error = 6;
+  }
+  repeated Event events = 1;
+}
+
+message RoomActionLog{
+  int64 timestamp = 1;
+  Uuid roomUuid = 2;
+  Dali2LightCommand lightCommand = 3;
+  Dt8Command dt8Command = 4;
+  string source = 5;
+
 }
 
 /*****************************************************************************/
@@ -185,6 +212,7 @@ message ActionWithFeedbackRequest{
     DbSync dbSync = 9;
     V3RoomUpdate v3RoomUpdate = 10;
     V3RoomTriggerUpdate v3RoomTriggerUpdate = 11;
+    FileUpload fileUpload = 12;
   }
   //闪烁命令
   message Blink{
@@ -229,6 +257,9 @@ message ActionWithFeedbackRequest{
   message V3RoomTriggerUpdate{
     V3RoomTriggerInfo v3RoomTriggerInfo = 1;
   }
+  message FileUpload{
+    string filePath = 1;
+  }
 }
 
 
@@ -247,6 +278,7 @@ message AsyncActionFeedback{
     DbSync dbSync = 9;
     V3RoomUpdate v3RoomUpdate = 10;
     V3RoomTriggerUpdate v3RoomTriggerUpdate = 11;
+    FileUpload fileUpload = 12;
   }
   message Blink{
 
@@ -282,6 +314,11 @@ message AsyncActionFeedback{
       string msg = 2;
     }
     repeated Feedback feedback = 1;
+  }
+  message FileUpload{
+    bool success = 1;
+    string errMsg = 2;
+    FilePack file = 3;
   }
 }
 
@@ -397,7 +434,7 @@ message Headers{
   repeated sKsV kvs = 1;
 }
 
-//南向报文
+//南向报文 (含跨柜)
 message ToPlcMessage{
   int64 timestamp = 1;
   Headers headers = 3;
@@ -412,18 +449,28 @@ message ToServerMessage{
   google.protobuf.Any payload = 4;  //如果为回应，封装 Response
 }
 
+//跨柜报文
+message RoomSpanEvent{
+  int32 version = 1;
+  Uuid uuid = 2;
+  int64 randId = 3;
+  Dali2LightCommand lightCommand = 4;
+  Dt8Command dt8Command = 5;
+  string source = 6;
+  int32 firstFireCabinet = 7;
+}
 
-//message DB_cabinetV2{
-//  bool syncFlag = 1;
-//  int32 cabinet_ID = 2;
-//  string name = 3;
-//  string ip_address = 4;
-//  string description = 5;
-//  string version = 6;
-//  int64 lastAlive = 7;
-//  int64 lastSync = 8;
-//  int32 axis_x = 9;
-//  int32 axis_y = 10;
-//  int32 axis_z = 11;
-//}
+// OTA升级请求
+message OtaPackageRequest{
+  bool restartRequired = 1;
+  string targetPath = 2;
+  FilePack file = 3;
+}
+// OTA升级回应
+message OtaPackageResponse{
+  bool success = 1;
+  string errorMsg = 2;
+}
+
+
 

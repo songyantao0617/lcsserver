@@ -1,12 +1,20 @@
 package com.pxccn.PxcDali2.server.mq.config;
 
+import com.pxccn.PxcDali2.common.LcsThreadFactory;
 import org.springframework.amqp.core.DirectExchange;
 import org.springframework.amqp.core.FanoutExchange;
 import org.springframework.amqp.rabbit.AsyncRabbitTemplate;
+import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
+import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionNameStrategy;
+import org.springframework.amqp.rabbit.connection.RabbitConnectionFactoryBean;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.amqp.CachingConnectionFactoryConfigurer;
+import org.springframework.boot.autoconfigure.amqp.ConnectionFactoryCustomizer;
+import org.springframework.boot.autoconfigure.amqp.RabbitConnectionFactoryBeanConfigurer;
+import org.springframework.boot.autoconfigure.amqp.RabbitTemplateConfigurer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -14,11 +22,10 @@ import org.springframework.context.annotation.Configuration;
 public class MqConfigure {
 
     public static final String switch_realtime = "Fanout-RealtimeStatus";
+    public static final String switch_log = "Fanout-CabinetLog";
     public static final String switch_broadcastToPlc = "Fanout-BroadcastToPlc";
     public static final String switch_cabinet_common = "Fanout-CabinetCommon";
     public static final String switch_cabinet_event = "Fanout-CabinetEvent";
-    //    public static final String consumerQueue_realtime = "lcs.server.realtime-status";
-//    public static final String consumerQueue_cabinet_common = "lcs.server.cabinet-common";
     public static final String switch_ToPlcCommon = "Direct-ToPlcCommon";
 
 
@@ -35,6 +42,11 @@ public class MqConfigure {
     @Bean
     public FanoutExchange RealtimeStatusExchange() {
         return new FanoutExchange(switch_realtime, true, false, null);
+    }
+
+    @Bean
+    public FanoutExchange CabinetLogExchange() {
+        return new FanoutExchange(switch_log, true, false, null);
     }
 
     @Bean
@@ -56,30 +68,30 @@ public class MqConfigure {
     public FanoutExchange BroadcastToExchange() {
         return new FanoutExchange(switch_broadcastToPlc, true, false, null);
     }
-//
-//    @Bean
-//    public Queue RealtimeStatusQueue() {
-//        return new Queue(consumerQueue_realtime);
-//    }
-//
-//    @Bean
-//    public Queue CabinetCommonQueue() {
-//        return new Queue(consumerQueue_cabinet_common);
-//    }
-//
-//    @Bean
-//    public Binding bindRealtimeStatus() {
-//        return BindingBuilder
-//                .bind(RealtimeStatusQueue())   //绑定队列
-//                .to(RealtimeStatusExchange());       //队列绑定到哪个交换器
-//    }
-//
-//    @Bean
-//    public Binding bindCabinetCommon() {
-//        return BindingBuilder
-//                .bind(CabinetCommonQueue())   //绑定队列
-//                .to(CabinetCommonExchange());       //队列绑定到哪个交换器
-//    }
+
+    @Bean
+    CachingConnectionFactory rabbitConnectionFactory(
+            RabbitConnectionFactoryBeanConfigurer rabbitConnectionFactoryBeanConfigurer,
+            CachingConnectionFactoryConfigurer rabbitCachingConnectionFactoryConfigurer,
+            ObjectProvider<ConnectionFactoryCustomizer> connectionFactoryCustomizers) throws Exception {
+        RabbitConnectionFactoryBean connectionFactoryBean = new RabbitConnectionFactoryBean();
+        connectionFactoryBean.setThreadFactory(LcsThreadFactory.forName("rabbitmq"));
+        rabbitConnectionFactoryBeanConfigurer.configure(connectionFactoryBean);
+        connectionFactoryBean.afterPropertiesSet();
+        com.rabbitmq.client.ConnectionFactory connectionFactory = connectionFactoryBean.getObject();
+        connectionFactoryCustomizers.orderedStream().forEach((customizer) -> customizer.customize(connectionFactory));
+        CachingConnectionFactory factory = new CachingConnectionFactory(connectionFactory);
+        rabbitCachingConnectionFactoryConfigurer.configure(factory);
+        return factory;
+    }
+
+    @Bean
+    RabbitTemplate rabbitTemplate(RabbitTemplateConfigurer configurer, ConnectionFactory connectionFactory) {
+        var r = new RabbitTemplate();
+        r.setMessageConverter(new LCSMessageConverter());
+        configurer.configure(r, connectionFactory);
+        return r;
+    }
 
     @Bean
     AsyncRabbitTemplate asyncRabbitTemplate(ObjectProvider<RabbitTemplate> rabbitTemplate) {
@@ -88,6 +100,5 @@ public class MqConfigure {
         a.setReceiveTimeout(1000 * 60 * 10);
         return a;
     }
-
 
 }

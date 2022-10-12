@@ -1,14 +1,18 @@
 package com.pxccn.PxcDali2.server.framework;
 
+import ch.qos.logback.classic.html.DefaultThrowableRenderer;
 import com.pxccn.PxcDali2.common.ArrayUtil;
 import com.pxccn.PxcDali2.server.framework.Exception.FwAlreadyStoppedException;
 import com.pxccn.PxcDali2.server.framework.Exception.FwRuntimeException;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.helpers.FormattingTuple;
 import org.slf4j.helpers.MessageFormatter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ConfigurableApplicationContext;
 
+import java.io.*;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,7 +51,7 @@ public abstract class FwComponent extends FwObject implements IFwCompLifecycle {
 
     protected <T> FwProperty<T> addProperty(T defaultValue, String name, FwPropFlag flag) {
         if (name.endsWith("?")) {
-            name = this.generateUniqueSlotName(name);
+            name = this.generateUniqueSlotName(name.substring(0,name.length()-1));
         } else {
             if (this._props.containsKey(name)) {
                 var msg = MessageFormatter.arrayFormat("property name '{}' already exist in component '{}'", new Object[]{
@@ -68,6 +72,10 @@ public abstract class FwComponent extends FwObject implements IFwCompLifecycle {
 
     public FwProperty getProperty(String name) {
         return _props.getOrDefault(name, null);
+    }
+
+    public int getPropertyCount(){
+        return this._props.size();
     }
 
     public FwProperty[] getAllProperty() {
@@ -196,8 +204,8 @@ public abstract class FwComponent extends FwObject implements IFwCompLifecycle {
 
         for (i = num; i - num <= 100000; ++i) {
             String name = base + i;
-            if (this.getProperty(defName) == null) {
-                return defName;
+            if (this.getProperty(name) == null) {
+                return name;
             }
         }
         throw new IllegalStateException("NameContainer not functioning");
@@ -221,12 +229,47 @@ public abstract class FwComponent extends FwObject implements IFwCompLifecycle {
             }
         }
     }
-
+    static String[] renderThrowable(final Throwable throwable) {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        try {
+            throwable.printStackTrace(pw);
+        } catch(RuntimeException ex) {
+        }
+        pw.flush();
+        LineNumberReader reader = new LineNumberReader(
+                new StringReader(sw.toString()));
+        ArrayList lines = new ArrayList();
+        try {
+            String line = reader.readLine();
+            while(line != null) {
+                lines.add(line);
+                line = reader.readLine();
+            }
+        } catch(IOException ex) {
+            if (ex instanceof InterruptedIOException) {
+                Thread.currentThread().interrupt();
+            }
+            lines.add(ex.toString());
+        }
+        String[] tempRep = new String[lines.size()];
+        lines.toArray(tempRep);
+        return tempRep;
+    }
 
     protected String logStr(String msg, Object... arg) {
-        String logMsg = MessageFormatter.arrayFormat(msg, arg).getMessage();
+        FormattingTuple formattingTuple = MessageFormatter.arrayFormat(msg, arg);
+        StringBuilder sb =new StringBuilder();
+        sb.append(formattingTuple.getMessage());
+            if (formattingTuple.getThrowable() != null) {
+                sb.append("\n");
+                for(String i:renderThrowable(formattingTuple.getThrowable())){
+                    sb.append(i).append("\n");
+                }
+            }
+
         var clsName = this.getClass().getSimpleName();
-        return clsName+"<"+this.getLogLocate()+"> "+logMsg;
+        return clsName+"<"+this.getLogLocate()+"> "+sb.toString();
     }
 
     protected String getLogLocate() {

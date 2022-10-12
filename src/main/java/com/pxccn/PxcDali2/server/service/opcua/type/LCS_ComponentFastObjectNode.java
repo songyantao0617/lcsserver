@@ -77,7 +77,7 @@ public class LCS_ComponentFastObjectNode extends LCS_FastObjectNodeBase {
             return Identifiers.Float;
         } else if (t == Integer.TYPE || t == Integer.class) {
             return Identifiers.Int32;
-        } else if (t == String.class) {
+        } else if (t == String.class || t == String[].class || t == String[][].class) {
             return Identifiers.String;
         } else if (t == UUID.class) {
             return Identifiers.String;
@@ -203,10 +203,11 @@ public class LCS_ComponentFastObjectNode extends LCS_FastObjectNodeBase {
         }
     }
 
-    class declareItem implements UaHelperUtil.UaPropDeclare {
+    public class declareItem implements UaHelperUtil.UaPropDeclare {
         private final UaHelperUtil.VariableDeclareParams setting;
         private final String slotName;
-        declareItem(String slotName, UaHelperUtil.VariableDeclareParams setting) {
+
+        public declareItem(String slotName, UaHelperUtil.VariableDeclareParams setting) {
             this.slotName = slotName;
             this.setting = setting;
         }

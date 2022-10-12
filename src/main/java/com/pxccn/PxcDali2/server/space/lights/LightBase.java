@@ -19,7 +19,6 @@ import com.pxccn.PxcDali2.server.framework.FwContext;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
 import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
-import com.pxccn.PxcDali2.server.service.opcua.type.LCS_AlarmConditionTypeNode;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
 import com.pxccn.PxcDali2.server.service.opcua.type.enums.LCS_AlarmLightErrorTypeNode;
 import com.pxccn.PxcDali2.server.service.rpc.CabinetRequestService;
@@ -30,9 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import javax.annotation.PostConstruct;
-import java.util.Collections;
-import java.util.UUID;
-import java.util.Vector;
+import java.util.*;
 import java.util.function.Consumer;
 
 @FwComponentAnnotation
@@ -61,12 +58,16 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
 
     LCS_AlarmLightErrorTypeNode alarmNode;
 
-    public LCS_AlarmLightErrorTypeNode getLightErrorAlarmNode(){
+    public LCS_AlarmLightErrorTypeNode getLightErrorAlarmNode() {
         return this.alarmNode;
     }
 
     public UUID getLightUuid() {
         return lightUuid;
+    }
+
+    public String getLightName(){
+        return lightName.get();
     }
 
     abstract void cabinetStatusChanged(boolean isOnline);
@@ -100,6 +101,10 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
         return cabinetId.get();
     }
 
+    public int getTerminalIndex(){
+        return this.terminalIndex.get();
+    }
+
     public void setCabinetId(int cabinetId) {
         this.cabinetId.set(cabinetId);
     }
@@ -125,7 +130,7 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
     }
 
     @PostConstruct
-    public void post() {
+    public void init() {
         lightName = addProperty("", "lightName");
         description = addProperty("", "description");
         axis_x = addProperty(0, "axis_x");
@@ -139,6 +144,20 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
         shortAddress = addProperty(-1, "shortAddress");
         actionFeedback = addProperty("", "actionFeedback");
 
+    }
+
+    public void changeLightName(String name){
+        var m = logStr("changeLightName: name={}",name);
+        log.trace(m);
+        uaAlarmEventService.debugEvent(this,m);
+        var cabinet = this.getCabinet();
+        if (!cabinet.isAlive()){
+            log.error("changeLightName failure! cabinet is not alive");
+            uaAlarmEventService.failureEvent(this,"changeLightName failure! cabinet is not alive");
+        }
+        Map<UUID,String> p = new HashMap<>();
+        p.put(this.getLightUuid(),name);
+        cabinet.changeLightName(p);
     }
 
     public LightsManager getLightsManager() {
@@ -165,7 +184,7 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
         super.onChanged(property, context);
         if (property == this.lightName) {
             this.getNode().setDisplayName(new LocalizedText(this.lightName.get()));
-            this.getNode().setBrowseName(new QualifiedName(getNode().getNodeId().getNamespaceIndex(),this.lightName.get()));
+            this.getNode().setBrowseName(new QualifiedName(getNode().getNodeId().getNamespaceIndex(), this.lightName.get()));
         }
 
         this.notifyObserver();
@@ -173,6 +192,10 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
 
     public Cabinet getCabinet() {
         return cabinetsManager.GetOrCreateCabinet(this.cabinetId.get());
+    }
+
+    protected String getLogLocate() {
+        return this.lightName.get()+"("+this.getLightUuid()+")";
     }
 
     public void sendCtlCommand(
@@ -220,7 +243,7 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
 //        node.addReference(this.getParentNode(), Identifiers.HasNotifier, true);
             this.alarmNode.enable();
         } catch (Exception e) {
-            log.error("创建灯具报警节点出错", e);
+            log.error("Fatal error to create light ua node", e);
         }
     }
 
@@ -262,11 +285,16 @@ public abstract class LightBase extends FwUaComponent<LightBase.LCS_LightBaseNod
                 var CmdDt8 = new Dt8CommandModel(UaHelperUtil.getEnum(Dt8CommandModel.Instructions.class, input[2].intValue()), input[3].intValue(), input[4].intValue());
                 this.comp.sendCtlCommand(Cmd103, CmdDt8);
                 return null;
+            }else if(declared == methods._changeLightName){
+                var n = input[0].toString();
+                this.comp.changeLightName(n);
+                return null;
             }
             return super.onMethodCall(declared, input);
         }
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
+            _changeLightName(new UaHelperUtil.MethodArgument[]{new UaHelperUtil.MethodArgument("name", Identifiers.String)}, null),
             blink(new UaHelperUtil.MethodArgument[]{new UaHelperUtil.MethodArgument("enable", Identifiers.Boolean)}, null),
             fetchDetailsNow(),
 

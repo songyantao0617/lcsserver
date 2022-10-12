@@ -7,46 +7,47 @@ import com.pxccn.PxcDali2.server.space.ua.FwUaComponent;
 import java.util.Arrays;
 import java.util.Map;
 
+/**
+ * 控制柜遥测参数
+ */
 @FwComponentAnnotation
 public class Props extends FwUaComponent<Props.CabinetStatusNode> {
     private static final String[] resourceItems = {
-            "resources.category.network",
-            "resources.category.history",
-            "resources.category.proxyExt",
-            "resources.category.alarm",
-            "resources.category.component",
-            "resources.category.device",
-            "resources.total",
-            "resources.limit",
             "heap.used",
-            "heap.free",
-            "heap.max",
-            "heap.total",
-            "mem.used",
-            "mem.total",
             "cpu.usage",
-            "engine.scan.lifetime",
-            "engine.scan.recent",
-            "engine.scan.usage",
-            "engine.scan.peak",
-            "engine.scan.timeOfPeak",
             "engine.scan.timeOfPeakInterscan",
-            "engine.scan.peakInterscan",
-            "engine.queue.actions",
+            "engine.scan.timeOfPeak",
             "engine.queue.longTimers",
-            "engine.queue.mediumTimers",
-            "engine.queue.shortTimers",
             "time.uptime",
-            "time.start",
+            "engine.queue.shortTimers",
             "time.current",
-            "version.java",
-            "version.niagara",
-            "version.os",
-            "component.count",
-            "node.count",
-            "globalCapacity.devices",
-            "globalCapacity.points",
+            "engine.queue.mediumTimers",
+            "engine.scan.peak",
+            "engine.scan.lifetime",
+            "time.start",
+            "engine.queue.actions",
+            "engine.scan.usage",
+            "engine.scan.recent",
+            "engine.scan.peakInterscan"
     };
+
+    public String getCpuUsage() {
+        var n = this.getProperty("cpu.usage");
+        if (n != null) {
+            return (String) n.get();
+        } else {
+            return "";
+        }
+    }
+
+    public String getUptime() {
+        var n = this.getProperty("time.uptime");
+        if (n != null) {
+            return (String) n.get();
+        } else {
+            return "";
+        }
+    }
 
     public void accept(Map<String, String> propMap) {
         propMap.forEach((k, v) -> {

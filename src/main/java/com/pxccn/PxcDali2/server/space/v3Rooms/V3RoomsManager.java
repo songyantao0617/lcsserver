@@ -9,7 +9,7 @@ import com.pxccn.PxcDali2.common.LcsExecutors;
 import com.pxccn.PxcDali2.server.database.model.RoomUnitV3;
 import com.pxccn.PxcDali2.server.events.CabinetSimpleEvent;
 import com.pxccn.PxcDali2.server.framework.FwProperty;
-import com.pxccn.PxcDali2.server.service.db.CabinetQueryService;
+import com.pxccn.PxcDali2.server.service.db.DatabaseService;
 import com.pxccn.PxcDali2.server.service.opcua.UaAlarmEventService;
 import com.pxccn.PxcDali2.server.service.opcua.UaHelperUtil;
 import com.pxccn.PxcDali2.server.service.opcua.type.LCS_ComponentFastObjectNode;
@@ -30,19 +30,23 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 
+/**
+ * 数据库房间管理器
+ */
 @Component
 @Slf4j
 public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerNode> {
     @Autowired
     CabinetRequestService cabinetRequestService;
     @Autowired
-    CabinetQueryService cabinetQueryService;
+    DatabaseService databaseService;
     @Autowired
     UaAlarmEventService uaAlarmEventService;
     @Autowired
     CabinetsManager cabinetsManager;
+    FwProperty<Integer> count;
 
-    @Value("${LcsServer.autoDiscoverChangedRoom}:false")
+    @Value("${LcsServer.autoDiscoverChangedRoom:false}")
     boolean autoDiscoverChangedRoom;
 
     private ExecutorService executor;
@@ -54,14 +58,20 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
     @PostConstruct
     public void init() {
         executor = LcsExecutors.newWorkStealingPool(32, getClass());
+        this.count = addProperty(0,"count");
+    }
+
+    public void updateCount(){
+        this.count.set(this.getPropertyCount());
     }
 
     @EventListener
     public void onCabinetSimpleEvent(CabinetSimpleEvent event) {
-        var message = event.getMessage();
-        var uid = message.getUuid();
-        var cabinetId = message.getCabinetId();
-        switch (message.getEvent()) {
+        executor.execute(()->{
+            var message = event.getMessage();
+            var uid = message.getUuid();
+            var cabinetId = message.getCabinetId();
+            switch (message.getEvent()) {
 //            case RoomAdded:
 //                log.debug("房间<{}>创建", uid);
 //                this.AskToUpdateRoomsInfo(Collections.singletonList(uid), cabinetId);
@@ -74,7 +84,8 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
 //                log.debug("房间<{}>信息变更", uid);
 //                this.AskToUpdateRoomsInfo(Collections.singletonList(uid), cabinetId);
 //                break;
-        }
+            }
+        });
     }
 
 
@@ -104,7 +115,7 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
         log.trace(msg);
         uaAlarmEventService.debugEvent(this, msg);
 
-        Futures.addCallback(this.cabinetQueryService.getUpdatedV3Room(), new FutureCallback<List<RoomUnitV3>>() {
+        Futures.addCallback(this.databaseService.getUpdatedV3Room(), new FutureCallback<List<RoomUnitV3>>() {
             @Override
             public void onSuccess(@Nullable List<RoomUnitV3> updatedRooms) {
                 assert updatedRooms != null;
@@ -156,7 +167,7 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
 
                         }
                     });
-                    cabinetQueryService.clearV3RoomUpdateFlag(id);
+                    databaseService.clearV3RoomUpdateFlag(id);
                 });
 
                 roomsWithStatus2.forEach(room -> {
@@ -190,7 +201,7 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
                             }
                         }
                     });
-                    cabinetQueryService.removeV3RoomSync(id);
+                    databaseService.removeV3RoomSync(id);
                 });
 
                 var msg2 = logStr("sendSyncToCabinets:{}", cabinets);
@@ -245,6 +256,7 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
                 p = addProperty(c, roomPropName);
             }
         }
+        updateCount();
         return (V3Room) p.get();
     }
 
@@ -269,7 +281,7 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
         }
         log.info(logStr("RefreshV3RoomsFromDb"));
 
-        Futures.addCallback(cabinetQueryService.getAllV3Room(), new FutureCallback<List<RoomUnitV3>>() {
+        Futures.addCallback(databaseService.getAllV3Room(), new FutureCallback<List<RoomUnitV3>>() {
             @Override
             public void onSuccess(List<RoomUnitV3> result) {
                 var remainRoomsId = Arrays.stream(getAllRoom()).map(V3Room::getRoomUuid).collect(Collectors.toList());
@@ -306,6 +318,7 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
         protected V3RoomsManagerNode(V3RoomsManager uaComponent, String qname) {
             super(uaComponent, qname);
             this.comp = uaComponent;
+            addProperty(this.comp.count);
             addAdditionalDeclares(folders.values(), methods.values());
         }
 
@@ -325,10 +338,8 @@ public class V3RoomsManager extends FwUaComponent<V3RoomsManager.V3RoomsManagerN
         }
 
         private enum methods implements UaHelperUtil.UaMethodDeclare {
-
             refreshV3RoomsFromDb(),
             updateChangedRooms();
-
 
             private UaHelperUtil.MethodArgument[] in = null;
             private UaHelperUtil.MethodArgument[] out = null;

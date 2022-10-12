@@ -3,6 +3,7 @@ package com.pxccn.PxcDali2.server.service.rpc;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.pxccn.PxcDali2.MqSharePack.message.ProtoToPlcQueueMsg;
+import com.pxccn.PxcDali2.MqSharePack.model.NiagaraOperateRequestModel;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toPlc.ActionWithFeedbackRequestWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.ResponseWrapper;
 import com.pxccn.PxcDali2.MqSharePack.wrapper.toServer.asyncResp.AsyncActionFeedbackWrapper;
@@ -10,6 +11,7 @@ import com.pxccn.PxcDali2.server.mq.rpc.exceptions.BadMessageException;
 import com.pxccn.PxcDali2.server.mq.rpc.exceptions.OperationFailure;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Consumer;
 
@@ -51,6 +53,15 @@ public interface CabinetRequestService {
     ListenableFuture<Object> invokeMethodAsync(RpcTarget target, UUID resource, String slotPath, String methodName, InvokeParam... params);
 
     /**
+     * 异步调用 Niagara Action
+     * @param target
+     * @param actionOrd
+     * @param value
+     * @return
+     */
+    ListenableFuture<Object> invokeNiagaraMethodAsync(RpcTarget target, String actionOrd, String value);
+
+    /**
      * 异步读取 常规资源的 Property
      *
      * @param target
@@ -90,7 +101,13 @@ public interface CabinetRequestService {
      */
     ListenableFuture<Void> writePropertyValueAsync(RpcTarget target, UUID resourceUuid, String slotOrd, String newValue);
 
-
+    /**
+     * 批量写入 Property
+     * @param target
+     * @param parameters
+     * @return "" 成功，”exception message“
+     */
+    ListenableFuture<List<String>> batchWritePropertyAsync(RpcTarget target, List<WritePropertyParameter> parameters);
     /**
      * 异步发送带Feedback指令
      *
@@ -104,4 +121,6 @@ public interface CabinetRequestService {
                                                                             ActionWithFeedbackRequestWrapper request,
                                                                             @Nullable Consumer<ResponseWrapper> sendSuccess, int timeout
     );
+
+    void onReceiveFeedback(AsyncActionFeedbackWrapper feedbackWrapper);
 }

@@ -23,6 +23,7 @@ public abstract class FwUaComponent<T extends LCS_ComponentFastObjectNode> exten
     }
 
     public void onChanged(FwProperty property, FwContext context) {
+        super.onChanged(property, context);
         this.getNode().ownerChanged(property);
     }
 

@@ -47,7 +47,7 @@ public class Dali2LightRealtimeStatusModel extends CommonRealtimeStatusModel imp
             //如果已经携带异常信息了，就用这个信息
             this.exec = exceptionMessage;
         } else if (this.rawStatusResponse == -1 || this.rawActualLevelResponse == -1) {
-            this.exec = "lost collection";
+            this.exec = "lost connection";
         } else if (pb.getFrameError()) {
             this.exec = "frame error";
         } else {

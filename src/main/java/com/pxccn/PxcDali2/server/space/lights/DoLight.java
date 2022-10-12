@@ -11,7 +11,6 @@ import javax.annotation.PostConstruct;
 @FwComponentAnnotation
 @Slf4j
 public class DoLight extends LightBase {
-
     FwProperty<Double> subscribe_level;
     FwProperty<String> subscribe_fault;
     FwProperty<String> lightType;
@@ -25,8 +24,8 @@ public class DoLight extends LightBase {
     }
 
     @PostConstruct
-    public void post() {
-        super.post();
+    public void init() {
+        super.init();
         lightType = addProperty("DO", "lightType");
         subscribe_level = addProperty(0.0, "subscribe_level");
         subscribe_fault = addProperty("", "subscribe_fault");

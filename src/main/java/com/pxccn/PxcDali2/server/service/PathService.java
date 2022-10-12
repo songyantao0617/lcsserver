@@ -22,8 +22,7 @@ public class PathService implements SmartLifecycle {
         } catch (Exception ignore) {
 
         }
-        var sc = System.currentTimeMillis() - start;
-        log.info("sc");
+        log.info("System.currentTimeMillis() - start = {}",System.currentTimeMillis() - start);
     }
 
 

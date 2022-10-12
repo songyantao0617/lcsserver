@@ -16,19 +16,35 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 
+/**
+ * 灯控系统业务逻辑空间 最顶层
+ */
 @Service
 @Slf4j
 public class TopSpace extends FwComponent {
-
-    FwProperty<LightsManager> LightsManager;
-    FwProperty<CabinetsManager> CabinetsManager;
-    FwProperty<RoomsManager> RoomsManager;
-    FwProperty<V3RoomsManager> V3RoomsManager;
-
-    FwProperty<Cockpit> Cockpit;
-
     @Autowired
     ApplicationContext context;
+    /**
+     * 灯具管理器
+     */
+    FwProperty<LightsManager> LightsManager;
+    /**
+     * 控制柜管理器
+     */
+    FwProperty<CabinetsManager> CabinetsManager;
+    /**
+     * 控制柜级别房间管理器
+     */
+    FwProperty<RoomsManager> RoomsManager;
+    /**
+     * 数据库级别房间管理器
+     */
+    FwProperty<V3RoomsManager> V3RoomsManager;
+    /**
+     * 控制台
+     */
+    FwProperty<Cockpit> Cockpit;
+
     private boolean ready;
 
     public boolean isReady() {

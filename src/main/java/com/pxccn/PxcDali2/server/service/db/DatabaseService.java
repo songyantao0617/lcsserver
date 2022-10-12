@@ -1,6 +1,7 @@
 package com.pxccn.PxcDali2.server.service.db;
 
 import com.google.common.util.concurrent.*;
+import com.pxccn.PxcDali2.MqSharePack.model.CabinetLogEventModel;
 import com.pxccn.PxcDali2.MqSharePack.model.V3RoomLightInfoModel;
 import com.pxccn.PxcDali2.MqSharePack.model.V3RoomTriggerInfoModel;
 import com.pxccn.PxcDali2.common.LcsExecutors;
@@ -9,9 +10,12 @@ import com.pxccn.PxcDali2.server.database.mapper.RoomLightMapV3Mapper;
 import com.pxccn.PxcDali2.server.database.mapper.RoomTriggerV3Mapper;
 import com.pxccn.PxcDali2.server.database.mapper.RoomUnitV3Mapper;
 import com.pxccn.PxcDali2.server.database.mapperManual.FuncMapper;
+import com.pxccn.PxcDali2.server.database.mapperManual.LogMapper;
+import com.pxccn.PxcDali2.server.database.mapperManual.UpdateAuditTerminalLightInfoMapper;
 import com.pxccn.PxcDali2.server.database.model.*;
 import com.pxccn.PxcDali2.server.database.modelManual.FUNC_getV3RoomListFromCabinetID;
 import com.pxccn.PxcDali2.server.database.modelManual.TargetLight;
+import com.pxccn.PxcDali2.server.service.log.LogService;
 import lombok.extern.slf4j.Slf4j;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,19 +23,27 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
+/**
+ * 数据库服务
+ */
 @Component
 @Slf4j
-public class CabinetQueryService {
-
-    ListeningExecutorService listeningExecutorService;
+public class DatabaseService {
+    ListeningExecutorService executorService;
     @Autowired
     CabinetV2Mapper cabinetV2Mapper;
+    @Autowired
+    LogMapper logMapper;
+    @Autowired
+    UpdateAuditTerminalLightInfoMapper updateAuditTerminalLightInfoMapper;
     @Autowired
     RoomTriggerV3Mapper roomTriggerV3Mapper;
     @Autowired
@@ -45,7 +57,7 @@ public class CabinetQueryService {
 
     @PostConstruct
     public void init() {
-        this.listeningExecutorService = MoreExecutors.listeningDecorator(LcsExecutors.newWorkStealingPool(this.poolSize, getClass()));
+        this.executorService = MoreExecutors.listeningDecorator(LcsExecutors.newWorkStealingPool(this.poolSize, getClass()));
     }
 
     /**
@@ -54,7 +66,7 @@ public class CabinetQueryService {
      * @return
      */
     public ListenableFuture<List<RoomUnitV3>> getAllV3Room() {
-        return this.listeningExecutorService.submit(() -> {
+        return this.executorService.submit(() -> {
             var exp = new RoomUnitV3Example();
             exp.createCriteria();
             return this.roomUnitV3Mapper.selectByExample(exp);
@@ -68,7 +80,7 @@ public class CabinetQueryService {
      * @return
      */
     public ListenableFuture<RoomUnitV3> getV3RoomBasicInfo(UUID roomUuid) {
-        return this.listeningExecutorService.submit(() -> this.roomUnitV3Mapper.selectByPrimaryKey(roomUuid.toString()));
+        return this.executorService.submit(() -> this.roomUnitV3Mapper.selectByPrimaryKey(roomUuid.toString()));
     }
 
     /**
@@ -80,21 +92,21 @@ public class CabinetQueryService {
         var exp = new RoomUnitV3Example();
         var c = exp.createCriteria();
         c.andStatusGreaterThan(0);
-        return this.listeningExecutorService.submit(() -> this.roomUnitV3Mapper.selectByExample(exp));
+        return this.executorService.submit(() -> this.roomUnitV3Mapper.selectByExample(exp));
     }
 
-    public void removeV3RoomSync(UUID uuid){
-            var u = uuid.toString();
-            var exp1 = new RoomLightMapV3Example();
-            exp1.createCriteria().andRoomuuidEqualTo(u);
-            this.roomLightMapV3Mapper.deleteByExample(exp1);
-            var exp2 = new RoomTriggerV3Example();
-            exp2.createCriteria().andRoomuuidEqualTo(u);
-            this.roomTriggerV3Mapper.deleteByExample(exp2);
-            this.roomUnitV3Mapper.deleteByPrimaryKey(u);
+    public void removeV3RoomSync(UUID uuid) {
+        var u = uuid.toString();
+        var exp1 = new RoomLightMapV3Example();
+        exp1.createCriteria().andRoomuuidEqualTo(u);
+        this.roomLightMapV3Mapper.deleteByExample(exp1);
+        var exp2 = new RoomTriggerV3Example();
+        exp2.createCriteria().andRoomuuidEqualTo(u);
+        this.roomTriggerV3Mapper.deleteByExample(exp2);
+        this.roomUnitV3Mapper.deleteByPrimaryKey(u);
     }
 
-    public void clearV3RoomUpdateFlag(UUID uuid){
+    public void clearV3RoomUpdateFlag(UUID uuid) {
         var r = new RoomUnitV3();
         r.setRoomuuid(uuid.toString());
         r.setStatus(0);
@@ -107,9 +119,14 @@ public class CabinetQueryService {
      * @param roomUuid
      */
     public ListenableFuture<List<Integer>> queryCorrelateCabinetIdFromV3RoomId(UUID roomUuid) {
-        return this.listeningExecutorService.submit(() -> this.funcMapper.FUNC_queryCorrelateCabinetIdFromRoomId(roomUuid.toString())
+        return this.executorService.submit(() -> this.funcMapper.FUNC_queryCorrelateCabinetIdFromRoomId(roomUuid.toString())
         );
     }
+
+    public ListenableFuture<Integer> submitAuditLightInfo(int cabinetId, int terminalIndex, int currentLightCount, int currentErrorCount) {
+        return this.executorService.submit(() -> updateAuditTerminalLightInfoMapper.updateLightCountAndErrorCount(cabinetId, terminalIndex, currentLightCount, currentErrorCount));
+    }
+
 
     /**
      * 查询与指定控制柜ID相关联的房间
@@ -118,24 +135,25 @@ public class CabinetQueryService {
      * @return
      */
     public ListenableFuture<List<RoomUnitV3>> queryCorrelateV3RoomsOfCabinetId(int cabinetId) {
-        return this.listeningExecutorService.submit(() ->
-                this.funcMapper.FUNC_getV3RoomListFromCabinetID(cabinetId)
-                        .stream()
-                        .map(FUNC_getV3RoomListFromCabinetID::getRoomUUID)
+        return this.executorService.submit(() ->
+                        this.funcMapper.FUNC_getV3RoomListFromCabinetID(cabinetId)
+                                .stream()
+                                .map(FUNC_getV3RoomListFromCabinetID::getRoomUUID)
 //                        .collect(Collectors.toList())
 //                        .stream()
-                        .map(a -> this.roomUnitV3Mapper.selectByPrimaryKey(a))
-                        .collect(Collectors.toList())
+                                .map(a -> this.roomUnitV3Mapper.selectByPrimaryKey(a))
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toList())
         );
     }
 
     @Deprecated
-    public ListenableFuture<List<UUID>> queryCorrelateV3RoomsUuidOfCabinetId(int cabinetId){
-        return this.listeningExecutorService.submit(()->
-            this.funcMapper.FUNC_getV3RoomListFromCabinetID(cabinetId)
-                    .stream()
-                    .map(i->UUID.fromString(i.getRoomUUID()))
-                    .collect(Collectors.toList())
+    public ListenableFuture<List<UUID>> queryCorrelateV3RoomsUuidOfCabinetId(int cabinetId) {
+        return this.executorService.submit(() ->
+                this.funcMapper.FUNC_getV3RoomListFromCabinetID(cabinetId)
+                        .stream()
+                        .map(i -> UUID.fromString(i.getRoomUUID()))
+                        .collect(Collectors.toList())
         );
     }
 
@@ -146,7 +164,7 @@ public class CabinetQueryService {
      * @return
      */
     public ListenableFuture<List<UUID>> queryLightsUuidOfV3Room(UUID room) {
-        return this.listeningExecutorService.submit(() -> {
+        return this.executorService.submit(() -> {
             var exp = new RoomLightMapV3Example();
             exp.createCriteria().andRoomuuidEqualTo(room.toString());
             return this.roomLightMapV3Mapper.selectByExample(exp)
@@ -164,17 +182,17 @@ public class CabinetQueryService {
      * @return
      */
     public ListenableFuture<List<TargetLight>> queryTargetsOfV3Room(UUID room) {
-        return this.listeningExecutorService.submit(() -> this.funcMapper.FUNC_getV3LightsListFromRoomUuid(room.toString()));
+        return this.executorService.submit(() -> this.funcMapper.FUNC_getV3LightsListFromRoomUuid(room.toString()));
     }
 
     public ListenableFuture<List<RoomTriggerV3>> queryTriggerOfV3RoomWithCabinetId(UUID room, int cabinetId) {
         log.trace("queryTriggerOfV3RoomWithCabinetId: room={},cabinetId={}", room, cabinetId);
         RoomTriggerV3Example exp = new RoomTriggerV3Example();
-        var c =exp.createCriteria();
+        var c = exp.createCriteria();
         c.andRoomuuidEqualTo(room.toString()).andCabinetIdEqualTo(cabinetId);
         var c1 = exp.or();
         c1.andRoomuuidEqualTo(room.toString()).andCabinetIdIsNull();
-        return this.listeningExecutorService.submit(()->roomTriggerV3Mapper.selectByExample(exp));
+        return this.executorService.submit(() -> roomTriggerV3Mapper.selectByExample(exp));
     }
 
     /**
@@ -234,6 +252,7 @@ public class CabinetQueryService {
         }, executor);
         return future;
     }
+
     /**
      * 获取指定控制柜的V3房间客户端触发器同步信息
      *
@@ -241,7 +260,7 @@ public class CabinetQueryService {
      * @param executor
      * @return
      */
-    public ListenableFuture<List<V3RoomTriggerInfoModel.Trigger>> getV3RoomTriggerModelFromCabinetId(int cabinetId, Executor executor){
+    public ListenableFuture<List<V3RoomTriggerInfoModel.Trigger>> getV3RoomTriggerModelFromCabinetId(int cabinetId, Executor executor) {
         log.trace("sendV3RoomTriggerUpdate");
         SettableFuture<List<V3RoomTriggerInfoModel.Trigger>> future = SettableFuture.create();
         Futures.addCallback(this.queryCorrelateV3RoomsOfCabinetId(cabinetId), new FutureCallback<List<RoomUnitV3>>() {
@@ -249,7 +268,7 @@ public class CabinetQueryService {
             public void onSuccess(@Nullable List<RoomUnitV3> v3Rooms) {
                 assert v3Rooms != null;
                 List<ListenableFuture<List<RoomTriggerV3>>> ft = v3Rooms.stream()
-                        .map(i->queryTriggerOfV3RoomWithCabinetId(UUID.fromString(i.getRoomuuid()),cabinetId))
+                        .map(i -> queryTriggerOfV3RoomWithCabinetId(UUID.fromString(i.getRoomuuid()), cabinetId))
                         .collect(Collectors.toList());
                 Futures.addCallback(Futures.successfulAsList(ft), new FutureCallback<List<List<RoomTriggerV3>>>() {
                     @Override
@@ -257,15 +276,15 @@ public class CabinetQueryService {
                         assert result != null;
                         int size = v3Rooms.size();
                         List<V3RoomTriggerInfoModel.Trigger> finalTriggerList = new ArrayList<>();
-                        for(int index=0;index<size;index++){
+                        for (int index = 0; index < size; index++) {
                             var v3Room = v3Rooms.get(index);
                             var triggers = result.get(index);
-                            if(triggers == null){
-                                log.error("can not query triggers of room<{}>",v3Room);
+                            if (triggers == null) {
+                                log.error("can not query triggers of room<{}>", v3Room);
                                 continue;
                             }
 
-                            triggers.forEach(t->{
+                            triggers.forEach(t -> {
                                 var trigger = new V3RoomTriggerInfoModel.Trigger(UUID.fromString(t.getTriggeruuid()),
                                         t.getTriggertype(),
                                         UUID.fromString(t.getRoomuuid()),
@@ -281,24 +300,75 @@ public class CabinetQueryService {
                     public void onFailure(Throwable t) {
                         future.setException(t);
                     }
-                },MoreExecutors.directExecutor());
+                }, MoreExecutors.directExecutor());
             }
 
             @Override
             public void onFailure(Throwable t) {
 
             }
-        },executor);
+        }, executor);
         return future;
     }
 
-    public void updateTriggerFeedback2(UUID triggerUuid,String fb){
+    public void updateTriggerFeedback2(UUID triggerUuid, String fb) {
         var m = new RoomTriggerV3();
         m.setTriggeruuid(triggerUuid.toString());
         m.setFb2(fb);
-//        var s = this.roomTriggerV3Mapper.selectByPrimaryKey(triggerUuid.toString());
-//        s.setFb2(fb);
-//        this.roomTriggerV3Mapper.updateByPrimaryKeyWithBLOBs(s);
         this.roomTriggerV3Mapper.updateByPrimaryKeySelective(m);
     }
+
+    /**
+     * 写入控制柜日志
+     *
+     * @param cabinetId
+     * @param items
+     */
+    public void saveCabinetLogSync(int cabinetId, List<CabinetLogEventModel> items) {
+        if (log.isTraceEnabled()) {
+            log.trace("writeCabinetLog: cabinetId={},items={}", cabinetId, items);
+        }
+        try {
+            logMapper.insertCabinetLog(cabinetId, items);
+        } catch (Exception e) {
+            log.error("Insert CabinetLog fail!", e);
+        }
+    }
+
+    /**
+     * 保存房间动作日志
+     *
+     * @param items
+     */
+    public void saveRoomActionLogSync(List<LogService.RoomAction> items) {
+        if (log.isTraceEnabled()) {
+            log.trace("writeRoomActionLog: items={}", items);
+        }
+        try {
+            logMapper.insertRoomAction(items);
+        } catch (Exception e) {
+            log.error("Insert RoomActionLog fail!", e);
+        }
+    }
+
+    /**
+     * 删除日志
+     *
+     * @param timestamp
+     */
+    public void clearCabinetLogAndRoomActionLogBefore(long timestamp) {
+        log.trace("clearCabinetLogAndRoomActionLogBefore: timestamp={}", timestamp);
+        Timestamp t = new Timestamp(timestamp);
+        executorService.execute(() -> {
+            try {
+                int a = logMapper.deleteCabinetLogBefore(t);
+                int b = logMapper.deleteRoomActionBefore(t);
+                log.info("clear log finish! deletedCabinetLogs={},deletedRoomActions={}", a, b);
+            } catch (Exception e) {
+                log.error("error while clear log", e);
+            }
+        });
+    }
+
+
 }
